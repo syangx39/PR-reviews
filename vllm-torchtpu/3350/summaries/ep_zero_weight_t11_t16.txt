@@ -1,0 +1,30 @@
+# Early zero-weight + EP switching test (t11) and the EP stock-path fallback recheck (t16)
+#
+# Trees: base = vllm-torchtpu f640d734 (main); final = 7e4d170a (f640d734 + zero-weight 0001 + 0002);
+#        epfb = 586e11bc (final + 0003: keep the stock path under expert parallelism). Patches: patches/zero-weight-on-f640d734/.
+# Setup: Qwen3.5-35B-A3B BF16, one TPU v7x 2x2x1 host, TP=4; e1/e2 add enable_expert_parallel; z1 is TP only.
+#        Switch phase: 12 batches [16,10,16,1,16,15,12,16,3,17,32,16] of GSM8K prompts, greedy, up to 256 new tokens,
+#        request j gets 13*j fewer tokens (min 16), so active rows and buckets change inside a batch.
+# Commands (from this folder):
+#   python3 tools/n1_compare.py results/t11-ep-zero-weight --ref base_off_z1 --arms final_on_z1,final_off_z1
+#   python3 tools/n1_compare.py results/t11-ep-zero-weight --ref base_off_e1 --arms final_on_e1,final_off_e1
+#   python3 tools/ep_logprob_diff.py results/t11-ep-zero-weight --ref base_off_e1 --arm final_on_e1
+#   python3 tools/n1_compare.py results/t16-ep-fallback --ref base_off_e2 --arms epfb_on_e2,epfb_off_e2
+
+== t11, TP=4 only (z1): zero-weight on / off vs main
+N1 PASS: 2 arms vs base_off_z1; sequence [16, 10, 16, 1, 16, 15, 12, 16, 3, 17, 32, 16]; 25762 reference tokens
+
+== t11, TP=4 + EP (e1): zero-weight on / off vs main
+FAIL final_on_e1: batch 9 (n=17) differs from base_off_e1 in 2 rows; row 1: first token diff at None, lengths 243 / 243, finish length / length
+N1 FAIL: 2 arms vs base_off_e1; sequence [16, 10, 16, 1, 16, 15, 12, 16, 3, 17, 32, 16]; 25762 reference tokens
+final_on_e1 vs base_off_e1: ep=True, sequence [16, 10, 16, 1, 16, 15, 12, 16, 3, 17, 32, 16]
+  batch 9 (n=17) row 1: token ids identical=True, length 243, chosen-token log-prob differs at 13 positions from token 208, max |diff| 0.01791
+  batch 9 (n=17) row 3: token ids identical=True, length 217, chosen-token log-prob differs at 13 positions from token 171, max |diff| 0.0008907
+  2 of 170 rows differ
+
+== t16, TP=4 + EP (e2): stock-path fallback on / off vs main
+N1 PASS: 2 arms vs base_off_e2; sequence [16, 10, 16, 1, 16, 15, 12, 16, 3, 17, 32, 16]; 25762 reference tokens
+
+# Reading: with EP, zero-weight changed chosen-token log-probs of 2 rows in the n=17 batch after requests began to
+# finish (token ids identical); TP-only and the EP fallback are bit-identical to main. The cause was not isolated;
+# a change in the EP combine's accumulation order is one hypothesis. Row-count under EP and FP8 + EP were not tested.

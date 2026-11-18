@@ -1,0 +1,5 @@
+# grep -c / grep of the EP-fallback warning in the three g0 engine logs (logs on GCS: t16/g0/<arm>.log)
+base_off_e2.log: 0 warning line(s)
+epfb_on_e2.log: 1 warning line(s)
+epfb_off_e2.log: 0 warning line(s)
+(Worker_TP0_EP0 pid=38164) WARNING 11-15 07:39:54 [unquantized.py:270] TPU_MOE_SKIP_PADDED_TOKENS is not applied to the bf16 MoE with expert parallelism; it runs the stock path (no zeroing of padded routes, stock GMM kernel).

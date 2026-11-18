@@ -1,0 +1,26 @@
+A: n16 steps 30; module us/step median 5698.7 mean 5823.3; overlay waits/step median 57.0 totalling 68.2 us (mean 68.2)
+B: n16 steps 30; module us/step median 5984.2 mean 6113.1; overlay waits/step median 320.0 totalling 294.7 us (mean 294.7)
+
+B - A per step: module (mean) +289.9 us, overlay waits (mean) +226.5 us
+overlay-wait time by the op it falls in (us/step): A, B, B - A, waits/step A, B
+     19.30   113.29   +93.99     7.0  32.0  distributed_all_reduce bf16[16,2048]
+     13.08    59.00   +45.92     8.0  27.0  fused_conv1d_gdn_batched_b4_c1 bf16[16,8,128]
+      0.00    43.79   +43.79     0.0  30.0  select_reduce_fusion.lhs_group_sizes_ref s32[256]
+      0.00    24.53   +24.53     0.0  26.0  fusion bf16[16,2048]
+      0.00    19.14   +19.14     0.0  10.0  as_strided bf16[16,4,192]
+     18.40     6.13   -12.26     3.0   1.0  router_topk f32[16,8]
+      0.00     6.17    +6.17     0.0   1.0  scatter_custom_fusion s32[128]
+      0.00     6.13    +6.13     0.0   1.0  fusion f32[16,4]
+A: n32 steps 30; module us/step median 8099.4 mean 8042.0; overlay waits/step median 173.0 totalling 152.5 us (mean 152.6)
+B: n32 steps 30; module us/step median 7973.1 mean 7963.7; overlay waits/step median 73.0 totalling 59.6 us (mean 59.5)
+
+B - A per step: module (mean) -78.3 us, overlay waits (mean) -93.1 us
+overlay-wait time by the op it falls in (us/step): A, B, B - A, waits/step A, B
+     44.24     0.00   -44.24    21.0   0.0  fusion bf16[32]
+     35.99    11.36   -24.62    13.0   7.0  distributed_all_reduce bf16[32,2048]
+     30.86    11.51   -19.35    16.0   8.0  fused_conv1d_gdn_batched_b4_c1 bf16[32,8,128]
+      9.87     0.00    -9.87    11.0   0.0  fusion bf16[32,2048]
+      0.00     8.25    +8.25     0.0   7.0  sort s32[256]
+      0.00     6.17    +6.17     0.0   1.0  fusion bf16[32,16]
+      6.16     0.00    -6.16     1.0   0.0  reduce f32[32]
+      6.15     0.00    -6.15     1.0   0.0  copy bf16[4,8,24,128]

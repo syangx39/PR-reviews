@@ -1,0 +1,48 @@
+### before_optimizations 16-row: base_on_r1 module_1079 vs final_on_r1 module_0337
+# A ENTRY instructions: 13686; B: 13929; B - A = 243
+  +40  (A    1, B   41)  broadcast  pred[16,1]
+  +40  (A    0, B   40)  broadcast  pred[16,8]
+  +40  (A    1, B   41)  reshape  pred[16,1]
+  +40  (A    1, B   41)  reshape  pred[16]
+  +40  (A    0, B   40)  select  bf16[16,8]
+  +40  (A    0, B   40)  slice  pred[16]
+   +1  (A    0, B    1)  broadcast  bf16[16,8]
+   +1  (A    4, B    5)  constant  bf16[]
+   +1  (A    0, B    1)  parameter  pred[4096]
+### after_optimizations 16-row: base_on_r1 module_1082 vs final_on_r1 module_0340
+# A ENTRY instructions: 5730; B: 5792; B - A = 62
+  +30  (A    0, B   30)  copy-done  pred[16]@S1
+  +30  (A    0, B   30)  copy-start  (pred[16]@S1, pred[16], u32[]@S2)
+   +1  (A    0, B    1)  parameter  pred[4096]
+   +1  (A    0, B    1)  slice  pred[16]
+### before_optimizations 32-row: base_on_r1 module_1246 vs final_on_r1 module_0506
+# A ENTRY instructions: 13676; B: 13919; B - A = 243
+  +40  (A    1, B   41)  broadcast  pred[32,1]
+  +40  (A    0, B   40)  broadcast  pred[32,8]
+  +40  (A    1, B   41)  reshape  pred[32,1]
+  +40  (A    1, B   41)  reshape  pred[32]
+  +40  (A    0, B   40)  select  bf16[32,8]
+  +40  (A    0, B   40)  slice  pred[32]
+   +1  (A    0, B    1)  broadcast  bf16[32,8]
+   +1  (A    4, B    5)  constant  bf16[]
+   +1  (A    0, B    1)  parameter  pred[4096]
+### after_optimizations 32-row: base_on_r1 module_1249 vs final_on_r1 module_0509
+# A ENTRY instructions: 5820; B: 5902; B - A = 82
+  +40  (A    0, B   40)  copy-done  pred[32]@S1
+  +40  (A    0, B   40)  copy-start  (pred[32]@S1, pred[32], u32[]@S2)
+   +1  (A    0, B    1)  parameter  pred[4096]
+   +1  (A    0, B    1)  slice  pred[32]
+### after_optimizations 16-row: base_off_r1 module_1234 vs base_on_r1 module_1082
+# A ENTRY instructions: 5730; B: 5730; B - A = 0
+  +60  (A    0, B   60)  custom-call target=tpu_custom_call  (bf16[16,8,128]@S1, bf16[9573,544,1,2,256])
+  -60  (A   60, B    0)  custom-call target=tpu_custom_call  (bf16[16,8,128]@S1, bf16[9574,544,1,2,256])
+  +40  (A    0, B   40)  fusion  (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1)
+  -40  (A   40, B    0)  fusion  bf16[16,8]@S1
+  -40  (A   40, B    0)  fusion  pred[16,8]@S1
+  +40  (A    0, B   40)  reshape  pred[128]@S1
+  +20  (A    0, B   20)  custom-call target=tpu_custom_call  (bf16[1,16,2,2,256], bf16[9573,544,1,2,256])
+  -20  (A   20, B    0)  custom-call target=tpu_custom_call  (bf16[1,16,2,2,256], bf16[9574,544,1,2,256])
+  +10  (A    0, B   10)  parameter  bf16[9573,544,1,2,256]
+  -10  (A   10, B    0)  parameter  bf16[9574,544,1,2,256]
+   +1  (A    0, B    1)  tuple  (bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], /*index=5*/bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], bf16[9573,544,1,2,256], /*index=10*/bf16[16,2048])
+   -1  (A    1, B    0)  tuple  (bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], /*index=5*/bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], bf16[9574,544,1,2,256], /*index=10*/bf16[16,2048])

@@ -1,0 +1,30 @@
+r1 n=16 final_on  - base_on  : module  5742.1 ->  5989.5 us (+4.31%), aligned dur  +309.3 (GMM    +3.1, rest +306.2), gaps  -38.9, new/removed ops  +1.8
+r1 n=16 base_on   - base_off : module  5646.5 ->  5742.1 us (+1.69%), aligned dur   +26.7 (GMM    +6.9, rest  +19.8), gaps  +24.9, new/removed ops  +4.1
+r1 n=16 final_on  - base_off : module  5646.5 ->  5989.5 us (+6.07%), aligned dur  +329.2 (GMM   +10.0, rest +319.3), gaps  -14.2, new/removed ops +12.9
+r1 n=32 final_on  - base_on  : module  8072.9 ->  7962.0 us (-1.37%), aligned dur  -111.5 (GMM    -7.8, rest -103.7), gaps  +26.6, new/removed ops  +2.0
+r1 n=32 base_on   - base_off : module  8005.3 ->  8072.9 us (+0.84%), aligned dur   +53.6 (GMM    -9.2, rest  +62.8), gaps   +0.8, new/removed ops +18.3
+r1 n=32 final_on  - base_off : module  8005.3 ->  7962.0 us (-0.54%), aligned dur   -45.3 (GMM   -17.1, rest  -28.3), gaps  +27.4, new/removed ops  +7.8
+r1 n= 8 final_on  - base_on  : module  5893.6 ->  5574.3 us (-5.42%), aligned dur  -768.8 (GMM -1075.0, rest +306.2), gaps +431.3, new/removed ops  +1.8
+r1 n= 8 base_on   - base_off : module  5859.7 ->  5893.6 us (+0.58%), aligned dur   +25.7 (GMM    +6.6, rest  +19.1), gaps   +0.4, new/removed ops  +4.1
+r1 n= 8 final_on  - base_off : module  5859.7 ->  5574.3 us (-4.87%), aligned dur  -749.9 (GMM -1068.4, rest +318.5), gaps +431.5, new/removed ops +12.8
+  r1_n16 distributed_all_reduce     slow instances: base_on  6/81, final_on 31/81 (both 3); fast 10.53 us, slow 14.44 us; sum 867.2 -> 982.8 us/step; max spread over steps 3.35 us
+  r1_n16 select_reduce_fusion       slow instances: base_on  0/40, final_on 32/40 (both 0); fast 0.69 us, slow 2.58 us; sum 27.6 -> 81.1 us/step; max spread over steps 0.45 us
+  r1_n16 fused_conv1d_gdn_batched   slow instances: base_on  5/30, final_on 24/30 (both 5); fast 12.59 us, slow 15.06 us; sum 390.7 -> 438.3 us/step; max spread over steps 1.29 us
+  r1_n32 distributed_all_reduce     slow instances: base_on 10/81, final_on  5/81 (both 3); fast 11.28 us, slow 15.19 us; sum 955.5 -> 926.4 us/step; max spread over steps 2.62 us
+  r1_n32 select_reduce_fusion       slow instances: base_on  0/40, final_on  0/40 (both 0); fast 0.72 us, slow None us; sum 29.0 -> 27.5 us/step; max spread over steps 0.01 us
+  r1_n32 fused_conv1d_gdn_batched   slow instances: base_on  0/30, final_on  0/30 (both 0); fast 20.26 us, slow None us; sum 636.8 -> 617.9 us/step; max spread over steps 1.52 us
+r2 n=16 final_on  - base_on  : module  5696.2 ->  5986.4 us (+5.09%), aligned dur  +288.5 (GMM    +2.2, rest +286.3), gaps   +3.8, new/removed ops  +1.8
+r2 n=16 base_on   - base_off : module  5813.0 ->  5696.2 us (-2.01%), aligned dur   +32.5 (GMM    +7.1, rest  +25.4), gaps  -58.9, new/removed ops  +4.1
+r2 n=16 final_on  - base_off : module  5813.0 ->  5986.4 us (+2.98%), aligned dur  +314.2 (GMM    +9.3, rest +305.0), gaps  -55.2, new/removed ops +12.8
+r2 n=32 final_on  - base_on  : module  8088.5 ->  7959.8 us (-1.59%), aligned dur  -131.5 (GMM    -9.4, rest -122.1), gaps  -10.8, new/removed ops  +2.0
+r2 n=32 base_on   - base_off : module  8026.5 ->  8088.5 us (+0.77%), aligned dur   +46.2 (GMM    -8.2, rest  +54.4), gaps  +17.0, new/removed ops +18.3
+r2 n=32 final_on  - base_off : module  8026.5 ->  7959.8 us (-0.83%), aligned dur   -72.7 (GMM   -17.7, rest  -55.1), gaps   +6.1, new/removed ops  +7.8
+r2 n= 8 final_on  - base_on  : module  5918.9 ->  5173.3 us (-12.60%), aligned dur  -791.3 (GMM -1076.6, rest +285.3), gaps +163.6, new/removed ops  +1.8
+r2 n= 8 base_on   - base_off : module  5894.3 ->  5918.9 us (+0.42%), aligned dur   +31.1 (GMM    +6.9, rest  +24.2), gaps  -19.5, new/removed ops  +4.1
+r2 n= 8 final_on  - base_off : module  5894.3 ->  5173.3 us (-12.23%), aligned dur  -767.1 (GMM -1069.7, rest +302.6), gaps +144.0, new/removed ops +12.8
+  r2_n16 distributed_all_reduce     slow instances: base_on  6/81, final_on 31/81 (both 3); fast 10.73 us, slow 14.44 us; sum 891.0 -> 982.5 us/step; max spread over steps 3.1 us
+  r2_n16 select_reduce_fusion       slow instances: base_on  0/40, final_on 32/40 (both 0); fast 0.69 us, slow 2.6 us; sum 27.6 -> 81.3 us/step; max spread over steps 0.65 us
+  r2_n16 fused_conv1d_gdn_batched   slow instances: base_on  5/30, final_on 24/30 (both 5); fast 12.59 us, slow 15.03 us; sum 390.8 -> 438.4 us/step; max spread over steps 0.85 us
+  r2_n32 distributed_all_reduce     slow instances: base_on 10/81, final_on  5/81 (both 3); fast 11.32 us, slow 15.34 us; sum 968.2 -> 917.6 us/step; max spread over steps 2.9 us
+  r2_n32 select_reduce_fusion       slow instances: base_on  0/40, final_on  0/40 (both 0); fast 0.72 us, slow None us; sum 29.0 -> 27.4 us/step; max spread over steps 0.01 us
+  r2_n32 fused_conv1d_gdn_batched   slow instances: base_on  0/30, final_on  0/30 (both 0); fast 20.27 us, slow None us; sum 637.6 -> 618.5 us/step; max spread over steps 1.77 us

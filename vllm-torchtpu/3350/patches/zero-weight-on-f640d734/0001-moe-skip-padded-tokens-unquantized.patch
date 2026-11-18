@@ -1,0 +1,168 @@
+From 5f53fe77e1d4671b148af3dc554ceb92f9d31baa Mon Sep 17 00:00:00 2001
+From: Summer Yang <xiaotongyang@google.com>
+Date: Sat, 14 Nov 2026 21:54:23 +0000
+Subject: [PATCH 1/2] [MoE] Skip padded tokens in the unquantized fused MoE
+ method (TPU_MOE_SKIP_PADDED_TOKENS)
+
+---
+ .../adapter/quantization/unquantized.py       |  18 ++-
+ .../quantization/test_unquantized_moe_skip.py | 104 ++++++++++++++++++
+ 2 files changed, 121 insertions(+), 1 deletion(-)
+ create mode 100644 tests/layers/adapter/quantization/test_unquantized_moe_skip.py
+
+diff --git a/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py b/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py
+index c085caa42..9ca313652 100644
+--- a/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py
++++ b/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py
+@@ -54,7 +54,8 @@ from vllm.model_executor.layers.vocab_parallel_embedding import (
+ )
+ from vllm.model_executor.utils import replace_parameter
+ 
+-from vllm_torchtpu.layers.adapter import moe_routing
++from vllm_torchtpu import envs
++from vllm_torchtpu.layers.adapter import moe_routing, token_padding
+ from vllm_torchtpu.layers.adapter.fused_moe import (
+     TpuMoEActivationMixin,
+     fused_moe_gmm,
+@@ -257,6 +258,11 @@ class VllmUnquantizedFusedMoEMethod(TpuMoEActivationMixin, UnquantizedFusedMoEMe
+         # Parent sets _is_monolithic=False on TPU and skips wiring
+         # apply_monolithic.  Override both after super().__init__().
+         self.apply_monolithic = self._select_monolithic()
++        # TPU_MOE_SKIP_PADDED_TOKENS is read once here, outside the compiled
++        # forward: the fused GMM kernel is built with the same flag
++        # (prebuild_fused_moe_kernel), and the forward only branches on this
++        # Python bool.
++        self._skip_padded_tokens = bool(envs.TPU_MOE_SKIP_PADDED_TOKENS)
+ 
+     @property
+     def is_monolithic(self) -> bool:
+@@ -375,6 +381,16 @@ class VllmUnquantizedFusedMoEMethod(TpuMoEActivationMixin, UnquantizedFusedMoEMe
+         # methods so the routing-simulation hook lives in exactly one place.
+         topk_weights, topk_ids = moe_routing.route(layer, x, router_logits)
+ 
++        # Padded rows keep their expert ids and get zero gate weight; the GMM
++        # kernel built with skip_padded_tokens leaves zero-weight entries out
++        # of the expert groups (as in the FP8 and MXFP4 MoE methods).
++        if getattr(self, "_skip_padded_tokens", False):
++            topk_ids, topk_weights = token_padding.zero_routing_weights_for_padding(
++                topk_ids,
++                topk_weights,
++                is_local_tensor=enable_pipelined_collective_and_compute(),
++            )
++
+         kwargs = {
+             "hidden_states": x,
+             "w1": layer.w13_weight,
+diff --git a/tests/layers/adapter/quantization/test_unquantized_moe_skip.py b/tests/layers/adapter/quantization/test_unquantized_moe_skip.py
+new file mode 100644
+index 000000000..b09230eef
+--- /dev/null
++++ b/tests/layers/adapter/quantization/test_unquantized_moe_skip.py
+@@ -0,0 +1,104 @@
++# Copyright 2026 Google LLC
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++"""TPU_MOE_SKIP_PADDED_TOKENS in the unquantized (bf16) fused MoE method."""
++
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++from vllm_torchtpu.layers.adapter.quantization import unquantized as module
++from vllm_torchtpu.layers.adapter.quantization.unquantized import (
++    VllmUnquantizedFusedMoEMethod,
++)
++
++
++def _method(skip_padded_tokens: bool) -> VllmUnquantizedFusedMoEMethod:
++    method = VllmUnquantizedFusedMoEMethod.__new__(VllmUnquantizedFusedMoEMethod)
++    method._tpu_activation_str = "silu"
++    method._skip_padded_tokens = skip_padded_tokens
++    return method
++
++
++def _layer() -> SimpleNamespace:
++    return SimpleNamespace(
++        w13_weight=None,
++        w2_weight=None,
++        _experts_start=None,
++        moe_config=SimpleNamespace(experts_per_token=2),
++    )
++
++
++@pytest.fixture
++def routed(monkeypatch):
++    ids = torch.tensor([[1, 2], [3, 4], [5, 6], [7, 8]], dtype=torch.int32)
++    weights = torch.full((4, 2), 0.5)
++    calls = []
++
++    def mask(topk_ids, topk_weights, is_local_tensor):
++        calls.append(is_local_tensor)
++        topk_weights = topk_weights.clone()
++        topk_weights[-1] = 0  # last row is padding
++        return topk_ids, topk_weights
++
++    monkeypatch.setattr(module.moe_routing, "route", lambda *args: (weights, ids))
++    monkeypatch.setattr(module.token_padding, "zero_routing_weights_for_padding", mask)
++    monkeypatch.setattr(
++        module, "enable_pipelined_collective_and_compute", lambda: False
++    )
++    monkeypatch.setattr(module, "fused_moe_gmm", lambda **kwargs: kwargs)
++    return SimpleNamespace(ids=ids, weights=weights, calls=calls)
++
++
++def test_padded_rows_get_zero_weight_when_enabled(routed):
++    out = _method(True)._forward_monolithic_tpu(
++        _layer(), torch.ones(4, 128, dtype=torch.bfloat16), torch.zeros(4, 8)
++    )
++    assert routed.calls == [False]
++    torch.testing.assert_close(out["topk_ids"], routed.ids)
++    assert out["topk_weights"][-1].count_nonzero() == 0
++    torch.testing.assert_close(out["topk_weights"][:-1], routed.weights[:-1])
++
++
++def test_routes_unchanged_when_disabled(routed):
++    out = _method(False)._forward_monolithic_tpu(
++        _layer(), torch.ones(4, 128, dtype=torch.bfloat16), torch.zeros(4, 8)
++    )
++    assert routed.calls == []
++    torch.testing.assert_close(out["topk_weights"], routed.weights)
++
++
++def test_forward_does_not_read_env(routed, monkeypatch):
++    """The flag is read at construction; the compiled forward must not touch envs."""
++
++    class _NoEnv:
++        def __getattr__(self, name):
++            raise AssertionError(f"forward read envs.{name}")
++
++    monkeypatch.setattr(module, "envs", _NoEnv())
++    for skip in (False, True):
++        _method(skip)._forward_monolithic_tpu(
++            _layer(), torch.ones(4, 128, dtype=torch.bfloat16), torch.zeros(4, 8)
++        )
++
++
++@pytest.mark.parametrize("flag", [False, True])
++def test_flag_read_at_construction(monkeypatch, flag):
++    monkeypatch.setattr(
++        module.UnquantizedFusedMoEMethod, "__init__", lambda self, moe: None
++    )
++    monkeypatch.setattr(
++        module, "envs", SimpleNamespace(TPU_MOE_SKIP_PADDED_TOKENS=flag)
++    )
++    assert VllmUnquantizedFusedMoEMethod(None)._skip_padded_tokens is flag
+-- 
+2.56.1.703.gf848ed807c-goog
+

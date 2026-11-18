@@ -1,0 +1,89 @@
+anchor A: tt_jit_ir_ops_L89C0_fused_add_rms_norm_to_copy_copy_(14512450523834468197) steps 32
+anchor B: tt_jit_ir_ops_L89C0_fused_add_rms_norm_to_copy_copy_(14121214978197194209) steps 32
+A: steps 30  module us/step median 5696.2  ops-busy 5640.3  idle-in-module 55.6  ops/step 4747.0
+B: steps 30  module us/step median 5986.4  ops-busy 5930.8  idle-in-module 55.1  ops/step 4808.0
+
+per step, B - A: aligned-op duration +288.5 us, aligned-op idle gap +3.8 us, unaligned ops +1.8 us (incl. their gaps)
+module time per step B - A: +294.2 us
+
+by op kind (us/step): duration delta, gap delta, count/step
+  dur   +92.12  gap    -0.00  x 81.0  distributed_all_reduce bf16[16,2048]
+  dur   +54.30  gap    -0.00  x 40.0  select_reduce_fusion.lhs_group_sizes_ref s32[256]
+  dur   +47.75  gap    -0.00  x 30.0  fused_conv1d_gdn_batched_b4_c1 bf16[16,8,128]
+  dur   +32.66  gap    +0.01  x121.0  fusion bf16[16,2048]
+  dur   +21.85  gap    +0.00  x 10.0  as_strided bf16[16,4,192]
+  dur   -12.46  gap    -0.00  x 40.0  router_topk f32[16,8]
+  dur   +11.74  gap    +0.00  x 50.0  fusion bf16[16,256]
+  dur    +8.20  gap    -0.00  x 30.0  fusion bf16[16,8,128]
+  dur    +6.80  gap    +0.09  x 40.0  compare_and_fusion pred[16,8]
+  dur    +6.46  gap    -0.00  x 40.0  scatter_custom_fusion s32[128]
+  dur    +6.40  gap    +0.00  x 10.0  fusion f32[16,4]
+  dur    +0.00  gap    +4.64  x  3.0  scatter_offload_async_start
+  dur    +4.00  gap    +0.00  x 30.0  reshape.qkv_ref f32[16,1,2048]
+  dur    +3.68  gap    +0.00  x 10.0  fusion bf16[16,4,256]
+  dur    +3.67  gap    +0.00  x 30.0  fused_conv1d_gdn_per_seq_b1_c16 bf16[16,8,128]
+  dur    +3.05  gap    -0.00  x 40.0  convert_reduce_fusion bf16[16,2048]
+  dur    -2.34  gap    -0.00  x 10.0  as_strided bf16[16,5,512]
+  dur    +2.07  gap    +0.00  x 40.0  gmm_v2-g_256-m_128-k_2048-act_silu-n_256-tm_128-tk_2048-tn_128.lhs_ref bf16[128,128]
+  dur    -1.97  gap    +0.00  x 80.0  gather_fusion bf16[128,2048]
+  dur    +0.52  gap    +0.00  x 40.0  sort s32[128]
+  dur    +0.52  gap    +0.00  x 21.0  gather_fusion s32[16]
+  dur    +0.00  gap    -0.44  x  8.0  copy-done s32[257]
+  dur    +0.43  gap    +0.00  x 20.0  convert_add_fusion f32[256]
+  dur    -0.38  gap    -0.00  x 30.0  copy_ f32[128]
+  dur    -0.11  gap    -0.19  x  6.0  pad_add_fusion s32[512]
+
+unaligned ops (us/step):
+     +1.32  +as_strided pred[16]
+     -0.56  -broadcast_51_args_5_.args_5_ s32[4]
+     -0.53  -broadcast_52_args_4_.args_4_ s32[3]
+     +0.53  +broadcast_51_args_6_.args_6_ s32[6]
+     +0.52  +broadcast_53_args_4_.args_4_ s32[3]
+     +0.52  +broadcast_52_args_5_.args_5_ s32[4]
+     -0.52  -broadcast_50_args_6_.args_6_ s32[6]
+     +0.45  +copy-start pred[16]
+     -0.43  -broadcast_74__.clone._ bf16[16,8,128]
+     +0.43  +broadcast_75__.clone._ bf16[16,8,128]
+
+by layer (us/step): duration delta, gap delta
+  layer  0: dur   -0.41  gap   +3.76
+  layer  1: dur   +3.77  gap   +0.01
+  layer  2: dur   +6.77  gap   +0.01
+  layer  3: dur   +2.18  gap   +0.00
+  layer  4: dur   +9.32  gap   -0.00
+  layer  5: dur   +3.33  gap   +0.00
+  layer  6: dur  +10.58  gap   +0.00
+  layer  7: dur   +8.81  gap   +0.00
+  layer  8: dur   +8.95  gap   +0.00
+  layer  9: dur  +10.48  gap   +0.00
+  layer 10: dur   +4.17  gap   -0.00
+  layer 11: dur   +2.60  gap   +0.00
+  layer 12: dur   +8.89  gap   +0.00
+  layer 13: dur  +10.95  gap   +0.01
+  layer 14: dur   +3.57  gap   +0.01
+  layer 15: dur   +8.77  gap   +0.00
+  layer 16: dur   +9.76  gap   -0.00
+  layer 17: dur  +10.68  gap   +0.01
+  layer 18: dur  +17.65  gap   +0.00
+  layer 19: dur   -7.31  gap   -0.00
+  layer 20: dur   +1.18  gap   -0.00
+  layer 21: dur  +10.62  gap   +0.00
+  layer 22: dur  +10.40  gap   +0.00
+  layer 23: dur   +9.01  gap   +0.00
+  layer 24: dur   +8.85  gap   -0.00
+  layer 25: dur  +10.80  gap   +0.00
+  layer 26: dur   +3.20  gap   +0.00
+  layer 27: dur  +16.30  gap   +0.01
+  layer 28: dur   -5.50  gap   -0.01
+  layer 29: dur  +10.68  gap   +0.00
+  layer 30: dur  +10.61  gap   +0.00
+  layer 31: dur   +5.71  gap   +0.01
+  layer 32: dur   +9.35  gap   +0.00
+  layer 33: dur  +11.09  gap   +0.00
+  layer 34: dur  +10.85  gap   +0.00
+  layer 35: dur   +2.80  gap   +0.00
+  layer 36: dur   +6.77  gap   -0.02
+  layer 37: dur   +8.21  gap   +0.00
+  layer 38: dur  +10.87  gap   +0.00
+  layer 39: dur   +2.74  gap   +0.00
+  layer 40: dur   +0.50  gap   -0.00

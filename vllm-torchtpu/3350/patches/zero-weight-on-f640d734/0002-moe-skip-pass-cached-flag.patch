@@ -1,0 +1,265 @@
+From 7e4d170a5d21eb167eae43bcb93e554505e4286e Mon Sep 17 00:00:00 2001
+From: Summer Yang <xiaotongyang@google.com>
+Date: Sun, 15 Nov 2026 01:16:43 +0000
+Subject: [PATCH 2/2] [MoE] Pass the cached skip flag to the kernel prebuild
+ and selection
+
+The unquantized MoE method reads TPU_MOE_SKIP_PADDED_TOKENS once in __init__. Pass that bool to prebuild_fused_moe_kernel and, through the common kwargs, to fused_moe_gmm and pipelined_fused_moe_gmm, so the zeroing of padded routes, the prebuilt kernel and the runtime kernel selection use the same value instead of the selector reading the env when skip_padded_tokens is None.
+---
+ .../adapter/quantization/unquantized.py       |  12 +-
+ .../quantization/test_unquantized_moe_skip.py | 142 ++++++++++++++++--
+ 2 files changed, 134 insertions(+), 20 deletions(-)
+
+diff --git a/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py b/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py
+index 9ca313652..78dcdc2a9 100644
+--- a/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py
++++ b/src/vllm_torchtpu/layers/adapter/quantization/unquantized.py
+@@ -258,10 +258,10 @@ class VllmUnquantizedFusedMoEMethod(TpuMoEActivationMixin, UnquantizedFusedMoEMe
+         # Parent sets _is_monolithic=False on TPU and skips wiring
+         # apply_monolithic.  Override both after super().__init__().
+         self.apply_monolithic = self._select_monolithic()
+-        # TPU_MOE_SKIP_PADDED_TOKENS is read once here, outside the compiled
+-        # forward: the fused GMM kernel is built with the same flag
+-        # (prebuild_fused_moe_kernel), and the forward only branches on this
+-        # Python bool.
++        # TPU_MOE_SKIP_PADDED_TOKENS is read once here. The same bool decides
++        # whether the forward zeroes the padded rows' routing weights and is
++        # passed to the kernel prebuild and to the runtime kernel selection,
++        # so the three always agree.
+         self._skip_padded_tokens = bool(envs.TPU_MOE_SKIP_PADDED_TOKENS)
+ 
+     @property
+@@ -360,6 +360,7 @@ class VllmUnquantizedFusedMoEMethod(TpuMoEActivationMixin, UnquantizedFusedMoEMe
+             topk=layer.moe_config.experts_per_token,
+             activation=activation_str,
+             use_ep=layer.moe_config.moe_parallel_config.use_ep,
++            skip_padded_tokens=self._skip_padded_tokens,
+         )
+ 
+     def _forward_monolithic_tpu(
+@@ -384,7 +385,7 @@ class VllmUnquantizedFusedMoEMethod(TpuMoEActivationMixin, UnquantizedFusedMoEMe
+         # Padded rows keep their expert ids and get zero gate weight; the GMM
+         # kernel built with skip_padded_tokens leaves zero-weight entries out
+         # of the expert groups (as in the FP8 and MXFP4 MoE methods).
+-        if getattr(self, "_skip_padded_tokens", False):
++        if self._skip_padded_tokens:
+             topk_ids, topk_weights = token_padding.zero_routing_weights_for_padding(
+                 topk_ids,
+                 topk_weights,
+@@ -404,6 +405,7 @@ class VllmUnquantizedFusedMoEMethod(TpuMoEActivationMixin, UnquantizedFusedMoEMe
+             "experts_start": layer._experts_start,
+             "topk": layer.moe_config.experts_per_token,
+             "activation": activation_str,
++            "skip_padded_tokens": self._skip_padded_tokens,
+         }
+         if enable_pipelined_collective_and_compute():
+             return pipelined_fused_moe_gmm(**kwargs)
+diff --git a/tests/layers/adapter/quantization/test_unquantized_moe_skip.py b/tests/layers/adapter/quantization/test_unquantized_moe_skip.py
+index b09230eef..1ba09c8aa 100644
+--- a/tests/layers/adapter/quantization/test_unquantized_moe_skip.py
++++ b/tests/layers/adapter/quantization/test_unquantized_moe_skip.py
+@@ -18,11 +18,15 @@ from types import SimpleNamespace
+ import pytest
+ import torch
+ 
++from vllm_torchtpu.layers.adapter import fused_moe as fused_moe_module
++from vllm_torchtpu.layers.adapter import pipelined_fused_moe as pipelined_module
+ from vllm_torchtpu.layers.adapter.quantization import unquantized as module
+ from vllm_torchtpu.layers.adapter.quantization.unquantized import (
+     VllmUnquantizedFusedMoEMethod,
+ )
+ 
++_TOPK = 2
++
+ 
+ def _method(skip_padded_tokens: bool) -> VllmUnquantizedFusedMoEMethod:
+     method = VllmUnquantizedFusedMoEMethod.__new__(VllmUnquantizedFusedMoEMethod)
+@@ -36,14 +40,21 @@ def _layer() -> SimpleNamespace:
+         w13_weight=None,
+         w2_weight=None,
+         _experts_start=None,
+-        moe_config=SimpleNamespace(experts_per_token=2),
++        moe_config=SimpleNamespace(experts_per_token=_TOPK),
+     )
+ 
+ 
++def _forward(method, x=None):
++    if x is None:
++        x = torch.ones(4, 128, dtype=torch.bfloat16)
++    return method._forward_monolithic_tpu(_layer(), x, torch.zeros(4, 8))
++
++
+ @pytest.fixture
+-def routed(monkeypatch):
++def routes(monkeypatch):
++    """Fixed routes; the zeroing helper marks the last row as padding."""
+     ids = torch.tensor([[1, 2], [3, 4], [5, 6], [7, 8]], dtype=torch.int32)
+-    weights = torch.full((4, 2), 0.5)
++    weights = torch.full((4, _TOPK), 0.5)
+     calls = []
+ 
+     def mask(topk_ids, topk_weights, is_local_tensor):
+@@ -54,33 +65,86 @@ def routed(monkeypatch):
+ 
+     monkeypatch.setattr(module.moe_routing, "route", lambda *args: (weights, ids))
+     monkeypatch.setattr(module.token_padding, "zero_routing_weights_for_padding", mask)
++    return SimpleNamespace(ids=ids, weights=weights, calls=calls)
++
++
++@pytest.fixture
++def routed(routes, monkeypatch):
++    """Routes plus a GMM stub that returns its keyword arguments."""
+     monkeypatch.setattr(
+         module, "enable_pipelined_collective_and_compute", lambda: False
+     )
+     monkeypatch.setattr(module, "fused_moe_gmm", lambda **kwargs: kwargs)
+-    return SimpleNamespace(ids=ids, weights=weights, calls=calls)
++    return routes
+ 
+ 
+-def test_padded_rows_get_zero_weight_when_enabled(routed):
+-    out = _method(True)._forward_monolithic_tpu(
+-        _layer(), torch.ones(4, 128, dtype=torch.bfloat16), torch.zeros(4, 8)
++class _SkipFlagUnreadable:
++    """Stands in for vllm_torchtpu.envs; reading the skip flag fails."""
++
++    def __init__(self, real):
++        self._real = real
++
++    def __getattr__(self, name):
++        if name == "TPU_MOE_SKIP_PADDED_TOKENS":
++            raise AssertionError("read envs.TPU_MOE_SKIP_PADDED_TOKENS")
++        return getattr(self._real, name)
++
++
++class _RecordingKernelCache(dict):
++    def __init__(self):
++        super().__init__()
++        self.lookups = []
++
++    def get(self, key, default=None):
++        self.lookups.append(key)
++        return super().get(key, default)
++
++
++@pytest.fixture
++def kernel_selector(monkeypatch):
++    """The real wrappers and kernel selector, with CPU fake kernels in the
++    selector's cache for both skip values and the skip flag unreadable from
++    envs, so a lookup only succeeds when the flag is passed explicitly."""
++    cache = _RecordingKernelCache()
++    calls = []
++    for skip in (False, True):
++
++        def fake_kernel(*args, _skip=skip):
++            calls.append((_skip, args))
++            return args[0]
++
++        # Key layout of _get_fused_moe_custom_op:
++        # (topk, activation, use_ep, rhs_quant_dtype, skip_padded_tokens).
++        cache[(_TOPK, "silu", False, None, skip)] = fake_kernel
++    monkeypatch.setattr(fused_moe_module, "_fused_moe_kernel_cache", cache)
++    for mod in (module, fused_moe_module, pipelined_module):
++        monkeypatch.setattr(mod, "envs", _SkipFlagUnreadable(mod.envs))
++    # A single rank: the pipelined wrapper goes straight to fused_moe_gmm.
++    monkeypatch.setattr(
++        pipelined_module, "_get_moe_collective_group", lambda: (None, None)
+     )
++    return SimpleNamespace(cache=cache, calls=calls)
++
++
++def test_padded_rows_get_zero_weight_when_enabled(routed):
++    out = _forward(_method(True))
+     assert routed.calls == [False]
+     torch.testing.assert_close(out["topk_ids"], routed.ids)
+     assert out["topk_weights"][-1].count_nonzero() == 0
+     torch.testing.assert_close(out["topk_weights"][:-1], routed.weights[:-1])
++    assert out["skip_padded_tokens"] is True
+ 
+ 
+ def test_routes_unchanged_when_disabled(routed):
+-    out = _method(False)._forward_monolithic_tpu(
+-        _layer(), torch.ones(4, 128, dtype=torch.bfloat16), torch.zeros(4, 8)
+-    )
++    out = _forward(_method(False))
+     assert routed.calls == []
+     torch.testing.assert_close(out["topk_weights"], routed.weights)
++    assert out["skip_padded_tokens"] is False
+ 
+ 
+-def test_forward_does_not_read_env(routed, monkeypatch):
+-    """The flag is read at construction; the compiled forward must not touch envs."""
++def test_bf16_branch_does_not_read_env(routed, monkeypatch):
++    """The flag is read at construction; the bf16 forward branch does not read
++    envs again (the wrappers below it are covered by the selector test)."""
+ 
+     class _NoEnv:
+         def __getattr__(self, name):
+@@ -88,9 +152,7 @@ def test_forward_does_not_read_env(routed, monkeypatch):
+ 
+     monkeypatch.setattr(module, "envs", _NoEnv())
+     for skip in (False, True):
+-        _method(skip)._forward_monolithic_tpu(
+-            _layer(), torch.ones(4, 128, dtype=torch.bfloat16), torch.zeros(4, 8)
+-        )
++        _forward(_method(skip))
+ 
+ 
+ @pytest.mark.parametrize("flag", [False, True])
+@@ -102,3 +164,53 @@ def test_flag_read_at_construction(monkeypatch, flag):
+         module, "envs", SimpleNamespace(TPU_MOE_SKIP_PADDED_TOKENS=flag)
+     )
+     assert VllmUnquantizedFusedMoEMethod(None)._skip_padded_tokens is flag
++
++
++@pytest.mark.parametrize("pipelined", [False, True])
++@pytest.mark.parametrize("flag", [False, True])
++def test_kernel_selection_gets_cached_flag(
++    routes, kernel_selector, monkeypatch, flag, pipelined
++):
++    """The cached bool reaches the kernel selector through the real
++    fused_moe_gmm / pipelined_fused_moe_gmm wrappers, without an env read."""
++    monkeypatch.setattr(
++        module, "enable_pipelined_collective_and_compute", lambda: pipelined
++    )
++    x = torch.ones(4, 128, dtype=torch.bfloat16)
++    assert _forward(_method(flag), x) is x
++    assert kernel_selector.cache.lookups == [(_TOPK, "silu", False, None, flag)]
++    ((skip, args),) = kernel_selector.calls
++    assert skip is flag
++    assert routes.calls == ([pipelined] if flag else [])
++    topk_weights = args[7]
++    assert (topk_weights[-1].count_nonzero().item() == 0) is flag
++
++
++@pytest.mark.parametrize("flag", [False, True])
++def test_prebuild_gets_cached_flag(kernel_selector, monkeypatch, flag):
++    """process_weights_after_loading prebuilds the kernel for the cached bool,
++    through the real prebuild_fused_moe_kernel and selector."""
++
++    class _Experts(SimpleNamespace):
++        pass
++
++    monkeypatch.setattr(module, "RoutedExperts", _Experts)
++    monkeypatch.setattr(
++        module.moe_routing, "register_experts_start_buffer", lambda *a, **k: None
++    )
++    # Plain assignments: the method object is local to the test, and
++    # monkeypatch could not undo attributes on a module built with __new__.
++    method = _method(flag)
++    method.moe = SimpleNamespace(has_bias=False)
++    method._set_tpu_activation = lambda layer: "silu"
++    layer = _Experts(
++        w13_weight=torch.nn.Parameter(torch.zeros(2, 256, 128), requires_grad=False),
++        w2_weight=torch.nn.Parameter(torch.zeros(2, 128, 128), requires_grad=False),
++        moe_config=SimpleNamespace(
++            experts_per_token=_TOPK,
++            moe_parallel_config=SimpleNamespace(use_ep=False),
++        ),
++    )
++    method.process_weights_after_loading(layer)
++    assert kernel_selector.cache.lookups == [(_TOPK, "silu", False, None, flag)]
++    assert kernel_selector.calls == []
+-- 
+2.56.1.703.gf848ed807c-goog
+

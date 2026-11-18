@@ -1,0 +1,176 @@
+# Environment excerpts (read-only extracts; source path given above each block)
+
+## PJRT/libtpu build string and TorchTPU cache fingerprint (identical in every t4/t5/t6/t7/t10/t12 engine log)
+# source: G/t4/g0/final_on_r1.log lines 238-242
+I0000 00:00:1794710077.488674   16349 compilation_cache_utils.cc:99] Tier-2 cache uses TorchTPU binary fingerprint: 8ae752df13e66ac8
+  based on TorchTPU binary version 5 and PjRt version:
+TFRT TPU7x
+Built on Oct 7 2026 00:47:01 (1791359221)
+C API version: 0.116
+
+## pip list (t2/g0 and t3/g0 pip.txt; images 5b04ea68 / 20189991 built FROM the same base image as t4-t7 and t12)
+# source: G/t3/g0/pip.txt
+jax                                      0.11.2
+jaxlib                                   0.11.2
+libtpu                                   0.0.50
+pytest                                   9.2.0
+pytest-cov                               7.1.0
+pytest-mock                              3.17.0
+pytest-timeout                           2.4.0
+torch                                    2.13.0+cpu
+torch_tpu                                0.2.0
+torchvision                              0.28.0+cpu
+vllm                                     0.33.0+empty
+vllm_test_utils                          0.1
+vllm-torchtpu-core                       0.0.0
+
+## XLA overlay-related defaults in the compile flagfile of the 16-row forward module (t4, no LIBTPU_INIT_ARGS)
+# source: base_on_r1.hlo.tgz:base_on_r1/module_1079.tt_jit_ir_ops_L89C0_fused_add_rms_norm_to_copy_copy_.cl_994787025.flagfile (byte-identical in all 6 module bundles, sha256 e8b479ef62d27795...)
+--xla_jf_always_overlay=true
+--xla_jf_internal_prefetch_overlays=true
+--xla_jf_overlay_compression_threshold=2044723200
+--xla_sc_enable_scs_overlays=auto
+--xla_sc_enable_tile_overlays=auto
+--xla_sc_reserve_tile_overlay_handler_bundles=48
+--xla_sc_scs_overlay_region_size=3962
+--xla_sc_tile_overlays_size=-1
+--xla_tpu_last_overlay_prefetches_first=true
+--xla_tpu_merge_small_overlays_into_big_neighbors=true
+--xla_tpu_overlay_allocation_table_size=-1
+--xla_tpu_overlay_enable_hlo_function_packs=true
+--xla_tpu_prefer_conditional_same_overlay=auto
+--xla_tpu_show_overlay_details_in_profiler=false
+--xla_tpu_show_overlay_overhead_in_profiler=false
+--xla_tpu_show_overlay_waits_in_profiler=false
+--xla_tpu_show_overlay_waits_in_xprof=false
+--xla_tpu_single_overlay_mode=false
+
+## compile_options.textproto env_option_overrides (identical in all 6 module bundles)
+env_option_overrides {
+  key: "xla_tpu_vmem_scavenging_mode"
+  value {
+    string_field: "SAFE_IFF_KERNEL_REQUIRED"
+  }
+}
+
+## topology.textproto (identical in all 6 module bundles)
+platform_id: 9500091469671262378
+platform_name: "tpu"
+platform_version: "TFRT TPU7x\nBuilt on Oct 7 2026 00:47:01 (1791359221)"
+platform_specific_topology {
+  type_url: "type.googleapis.com/xla.TpuPjRtTopologyDescriptionProto"
+  value: "\n\'\010\006\030\001\"\007default*\010\010\001\020\001\030\001 \0012\010\010\001\020\002\030\001 \002:\000X\001`\001\022\004\n\000\030\001"
+}
+
+## execution_options.txt (identical in all 6 module bundles)
+num_replicas: 1
+device_assignment {
+  replica_count: 1
+  computation_count: 4
+  computation_devices {
+    replica_device_ids: 0
+  }
+  computation_devices {
+    replica_device_ids: 1
+  }
+  computation_devices {
+    replica_device_ids: 2
+  }
+  computation_devices {
+    replica_device_ids: 3
+  }
+}
+num_partitions: 4
+use_spmd_partitioning: true
+allow_spmd_sharding_propagation_to_output: false
+allow_spmd_sharding_propagation_to_parameters: false
+use_shardy_partitioner: true
+
+## Rendered JobSet specs at launch time (workstation /tmp/mskip-<run>-<group>.yaml; image / LIBTPU_INIT_ARGS / EXTRA lines only)
+# /tmp/mskip-t4-g0.yaml (mtime 2026-11-15 02:22:34)
+image: <internal-image>@sha256:2b7d95b9fc83c854eebfcdd7fb3895e301eb94a71179fbc352019c9c456a2a91
+- {name: MSKIP_ARMS, value: "base_on_r1@profile final_on_r1@profile base_off_r1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "1"}
+- {name: EXTRA, value: "--profile-ns 16,32,8 --profile-steps 32"}
+# /tmp/mskip-t4-g1.yaml (mtime 2026-11-15 02:22:35)
+image: <internal-image>@sha256:2b7d95b9fc83c854eebfcdd7fb3895e301eb94a71179fbc352019c9c456a2a91
+- {name: MSKIP_ARMS, value: "final_on_r2@profile base_on_r2@profile base_off_r2@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32,8 --profile-steps 32"}
+# /tmp/mskip-t5-g0.yaml (mtime 2026-11-15 02:54:34)
+image: <internal-image>@sha256:2b7d95b9fc83c854eebfcdd7fb3895e301eb94a71179fbc352019c9c456a2a91
+- {name: MSKIP_ARMS, value: "base_on_w1@profile final_on_w1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t5-g1.yaml (mtime 2026-11-15 02:54:35)
+image: <internal-image>@sha256:2b7d95b9fc83c854eebfcdd7fb3895e301eb94a71179fbc352019c9c456a2a91
+- {name: MSKIP_ARMS, value: "final_on_w2@profile base_on_w2@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t6-g0.yaml (mtime 2026-11-15 03:32:06)
+image: <internal-image>@sha256:2b7d95b9fc83c854eebfcdd7fb3895e301eb94a71179fbc352019c9c456a2a91
+- {name: MSKIP_ARMS, value: "base_on_m1@profile final_on_m1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true --xla_tpu_merge_small_overlays_into_big_neighbors=false"}
+# /tmp/mskip-t6-g1.yaml (mtime 2026-11-15 03:32:07)
+image: <internal-image>@sha256:2b7d95b9fc83c854eebfcdd7fb3895e301eb94a71179fbc352019c9c456a2a91
+- {name: MSKIP_ARMS, value: "final_on_h1@profile base_on_h1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true --xla_tpu_overlay_enable_hlo_function_packs=false"}
+# /tmp/mskip-t7-g0.yaml (mtime 2026-11-15 03:39:22)
+image: <internal-image>@sha256:06a244f0af28a012debc54dae458521f8ec7beefb1bd7d78710160085bdf2173
+- {name: MSKIP_ARMS, value: "base_on_v1@profile vmul_on_v1@profile final_on_v1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t7-g1.yaml (mtime 2026-11-15 03:39:22)
+image: <internal-image>@sha256:06a244f0af28a012debc54dae458521f8ec7beefb1bd7d78710160085bdf2173
+- {name: MSKIP_ARMS, value: "vmul_on_v2@profile final_on_v2@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t10-g0.yaml (mtime 2026-11-15 04:01:18)
+image: <internal-image>@sha256:f14bd68e35bf1bcbe3b93e90ae8d0e3a3beb6912af0d371d832a0924a9540723
+- {name: MSKIP_ARMS, value: "base_on_x1@profile final_on_x1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t10-g1.yaml (mtime 2026-11-15 04:01:19)
+image: <internal-image>@sha256:f14bd68e35bf1bcbe3b93e90ae8d0e3a3beb6912af0d371d832a0924a9540723
+- {name: MSKIP_ARMS, value: "final_on_x2@profile base_on_x2@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 16,32 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t12-g0.yaml (mtime 2026-11-15 04:39:22)
+image: <internal-image>@sha256:d8e2e7225f0de13682734322a99f9df593e675564abbe7fea13b7dc4274f2894
+- {name: MSKIP_ARMS, value: "base_on_y1@profile final_on_y1@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 256,128,64 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+# /tmp/mskip-t12-g1.yaml (mtime 2026-11-15 04:39:23)
+image: <internal-image>@sha256:d8e2e7225f0de13682734322a99f9df593e675564abbe7fea13b7dc4274f2894
+- {name: MSKIP_ARMS, value: "final_on_y2@profile base_on_y2@profile"}
+- {name: MSKIP_INPROC, value: "1"}
+- {name: MSKIP_XLA_DUMP, value: "0"}
+- {name: EXTRA, value: "--profile-ns 256,128,64 --profile-steps 32"}
+- {name: LIBTPU_INIT_ARGS, value: "--xla_tpu_show_overlay_waits_in_profiler=true"}
+
+## KV cache size reported by the engine (base_off differs by one 256-token block)
+t4/base_off_r1.log: KV cache size: 2,450,944 tokens
+t4/base_on_r1.log: KV cache size: 2,450,688 tokens
+t4/final_on_r1.log: KV cache size: 2,450,688 tokens

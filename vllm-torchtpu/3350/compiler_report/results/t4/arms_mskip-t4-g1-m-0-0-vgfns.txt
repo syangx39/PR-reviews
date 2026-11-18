@@ -1,0 +1,24 @@
+POD group=g1 pod=mskip-t4-g1-m-0-0-vgfns node=host-e02 arms=final_on_r2@profile base_on_r2@profile base_off_r2@profile start=2026-11-15T02:22:39Z
+unset TPU_PROCESS_ADDRESSES=mskip-t4-g1-m-0-0.mskip-t4-g1:8471
+unset TPU_TOPOLOGY=2x2x1
+unset TPU_WORKER_ID=0
+unset TPU_TOPOLOGY_WRAP=false,false,false
+unset TPU_CHIPS_PER_HOST_BOUNDS=2,2,1
+unset TPU_PROCESS_PORT=8471
+unset TPU_TOPOLOGY_ALT=false
+unset TPU_HOST_BOUNDS=1,1,1
+unset TPU_WORKER_HOSTNAMES=mskip-t4-g1-m-0-0.mskip-t4-g1
+TORCH_TPU_TOPOLOGY=1,2,1,2
+TPU_ACCELERATOR_TYPE=tpu7x
+TPU_LOG_DIR=/tmp/tpu_logs/m
+TPU_MULTIHOST_BACKEND=mp
+TPU_RUNTIME_METRICS_PORTS=8431,8432,8433,8434,8435,8436,8437,8438
+TPU_SKIP_MDS_QUERY=true
+fetch rc=0 2026-11-15T02:24:10Z
+ARM final_on_r2 start tree=final flag=on phases=profile inproc=1 2026-11-15T02:24:11Z
+ARM final_on_r2 engine_rc=0 status=0 end 2026-11-15T02:32:24Z
+ARM base_on_r2 start tree=base flag=on phases=profile inproc=1 2026-11-15T02:33:18Z
+ARM base_on_r2 engine_rc=0 status=0 end 2026-11-15T02:40:05Z
+ARM base_off_r2 start tree=base flag=off phases=profile inproc=1 2026-11-15T02:40:59Z
+ARM base_off_r2 engine_rc=0 status=0 end 2026-11-15T02:47:43Z
+POD done fail=0 2026-11-15T02:48:35Z

@@ -1,0 +1,862 @@
+# A: 40 router_topk, 5730 ENTRY instrs, layer seg 24219 lines
+# B: 40 router_topk, 5792 ENTRY instrs, layer seg 24401 lines
+--- A
++++ B
+@@ -39,0 +40 @@
++param = pred[4096] parameter()
+@@ -209,0 +211 @@
++weights_ref_gdn_dt_bias = bf16[8] parameter()
+@@ -211 +212,0 @@
+-weights_ref_gdn_dt_bias = bf16[8] parameter()
+@@ -1394,0 +1396 @@
++as_strided = pred[16] slice(param)
+@@ -2391,0 +2394 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -2539 +2542,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2543,0 +2548,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -2548,4 +2556,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -2555 +2562 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -3144,0 +3152 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -3290 +3298,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3294,0 +3304,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -3299,4 +3312,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -3306 +3318 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -3896,0 +3909 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -4042 +4055,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4046,0 +4061,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -4051,4 +4069,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -4058 +4075 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -4621 +4638 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -4625,0 +4643,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -4630,4 +4651,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -4637 +4657 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -5006,0 +5027 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -5152 +5173,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5156,0 +5179,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -5161,4 +5187,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -5168 +5193 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -5535,0 +5561 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -5681 +5707,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5685,0 +5713,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -5690,4 +5721,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -5697 +5727 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -6064,0 +6095 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -6210 +6241,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -6214,0 +6247,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -6219,4 +6255,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -6226 +6261 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -6768 +6803 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -6772,0 +6808,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -6777,4 +6816,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -6784 +6822 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -7153,0 +7192 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -7299 +7338,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -7303,0 +7344,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -7308,4 +7352,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -7315 +7358 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -7682,0 +7726 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -7828 +7872,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -7832,0 +7878,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -7837,4 +7886,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -7844 +7892 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -8211,0 +8260 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -8357 +8406,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -8361,0 +8412,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -8366,4 +8420,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -8373 +8426 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -8915 +8968 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -8919,0 +8973,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -8924,4 +8981,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -8931 +8987 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -9300,0 +9357 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -9446 +9503,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -9450,0 +9509,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -9455,4 +9517,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -9462 +9523 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -9829,0 +9891 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -9975 +10037,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -9979,0 +10043,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -9984,4 +10051,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -9991 +10057 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -10358,0 +10425 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -10504 +10571,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -10508,0 +10577,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -10513,4 +10585,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -10520 +10591 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -11062 +11133 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -11066,0 +11138,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -11071,4 +11146,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -11078 +11152 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -11447,0 +11522 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -11593 +11668,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -11597,0 +11674,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -11602,4 +11682,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -11609 +11688 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -11976,0 +12056 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -12122 +12202,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -12126,0 +12208,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -12131,4 +12216,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -12138 +12222 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -12505,0 +12590 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -12651 +12736,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -12655,0 +12742,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -12660,4 +12750,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -12667 +12756 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -13209 +13298 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -13213,0 +13303,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -13218,4 +13311,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -13225 +13317 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -13594,0 +13687 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -13740 +13833,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -13744,0 +13839,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -13749,4 +13847,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -13756 +13853 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -14123,0 +14221 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -14269 +14367,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -14273,0 +14373,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -14278,4 +14381,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -14285 +14387 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -14652,0 +14755 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -14798 +14901,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -14802,0 +14907,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -14807,4 +14915,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -14814 +14921 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -15356 +15463 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -15360,0 +15468,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -15365,4 +15476,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -15372 +15482 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -15741,0 +15852 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -15887 +15998,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -15891,0 +16004,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -15896,4 +16012,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -15903 +16018 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -16270,0 +16386 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -16416 +16532,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -16420,0 +16538,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -16425,4 +16546,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -16432 +16552 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -16799,0 +16920 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -16945 +17066,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -16949,0 +17072,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -16954,4 +17080,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -16961 +17086 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -17503 +17628 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -17507,0 +17633,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -17512,4 +17641,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -17519 +17647 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -17888,0 +18017 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -18034 +18163,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -18038,0 +18169,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -18043,4 +18177,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -18050 +18183 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -18417,0 +18551 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -18563 +18697,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -18567,0 +18703,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -18572,4 +18711,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -18579 +18717 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -18946,0 +19085 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -19092 +19231,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -19096,0 +19237,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -19101,4 +19245,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -19108 +19251 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -19650 +19793 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -19654,0 +19798,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -19659,4 +19806,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -19666 +19812 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -20035,0 +20182 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -20181 +20328,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -20185,0 +20334,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -20190,4 +20342,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -20197 +20348 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -20564,0 +20716 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -20710 +20862,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -20714,0 +20868,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -20719,4 +20876,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -20726 +20882 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -21093,0 +21250 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -21239 +21396,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -21243,0 +21402,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -21248,4 +21410,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -21255 +21416 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -21797 +21958 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -21801,0 +21963,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -21806,4 +21971,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -21813 +21977 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -22182,0 +22347 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -22328 +22493,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -22332,0 +22499,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -22337,4 +22507,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -22344 +22513 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -22711,0 +22881 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -22857 +23027,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -22861,0 +23033,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -22866,4 +23041,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -22873 +23047 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -23240,0 +23415 @@
++copy-start = (pred[16]@S1, pred[16], u32[]@S2) copy-start(as_strided)
+@@ -23383 +23558,2 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[16]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -23387,0 +23564,4 @@
++  param_3 = pred[16]@S1 parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -23392,4 +23572,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -23399 +23578 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)
+@@ -23943 +24122 @@
+-compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++compare_and_fusion = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, as_strided) kLoop
+@@ -23947,0 +24127,4 @@
++  param_3 = pred[16] parameter()
++  as_strided.clone = pred[16,8] broadcast(param_3) dimensions={0},
++  constant.clone.clone = bf16[] constant(0)
++  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
+@@ -23952,4 +24135,3 @@
+-  copy_.clone = bf16[16,8]@S1 convert(div.clone)
+-  convert = f32[16,8] convert(copy_.clone)
+-  constant.clone.clone = bf16[] constant(0)
+-  broadcast.clone = bf16[16,8] broadcast(constant.clone.clone) dimensions={},
++  copy_.clone = bf16[16,8] convert(div.clone)
++  where.clone = bf16[16,8]@S1 select(as_strided.clone, broadcast.clone, copy_.clone)
++  convert = f32[16,8] convert(where.clone)
+@@ -23959 +24141 @@
+-  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, copy_.clone)
++  tuple = (pred[16,8]@S1, pred[16,8]@S1, bf16[16,8]@S1) tuple(and, ne.clone, where.clone)

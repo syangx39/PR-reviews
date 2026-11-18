@@ -1,0 +1,18 @@
+vmul_on_v2 vs final_on_v2 n=16: overlay waits/step 320.0 -> 320.0, 295.8 -> 295.5 us (-0.4); existing-op duration -16.8 us (waits = 2%); forward 6112.8 -> 5985.7 us (-2.08%)
+    waits  26.0 ->  26.0/step, wait    -0.2 us, duration -0.1  fusion bf16[16,2048]
+    waits  10.0 ->  10.0/step, wait    -0.1 us, duration -0.1  as_strided bf16[16,4,192]
+    waits  27.0 ->  27.0/step, wait    -0.1 us, duration 0.3  fused_conv1d_gdn_batched_b4_c1 bf16[16,8,128]
+    waits  32.0 ->  32.0/step, wait    -0.0 us, duration -18.2  distributed_all_reduce bf16[16,2048]
+    waits   1.0 ->   1.0/step, wait    +0.0 us, duration 0.1  scatter_custom_fusion s32[128]
+    waits   1.0 ->   1.0/step, wait    -0.0 us, duration n/a  router_topk f32[16,8]
+    waits   1.0 ->   1.0/step, wait    -0.0 us, duration n/a  gather_fusion bf16[128,2048]
+    waits  25.0 ->  25.0/step, wait    -0.0 us, duration n/a  fusion bf16[16,8,128]
+vmul_on_v2 vs final_on_v2 n=32: overlay waits/step 73.0 -> 187.0, 59.4 -> 121.8 us (+62.3); existing-op duration +74.6 us (waits = 84%); forward 7969.1 -> 8047.1 us (+0.98%)
+    waits   1.0 ->  18.0/step, wait   +29.3 us, duration 33.5  scatter_custom_fusion s32[256]
+    waits   8.0 ->  18.0/step, wait   +27.1 us, duration 27.3  fused_conv1d_gdn_batched_b4_c1 bf16[32,8,128]
+    waits   0.0 ->  19.0/step, wait    +7.7 us, duration 19.7  gather_fusion bf16[256,2048]
+    waits   0.0 ->  22.0/step, wait    +6.7 us, duration 17.3  ne pred[256]
+    waits   0.0 ->   1.0/step, wait    +6.1 us, duration 6.4  reduce f32[32]
+    waits   7.0 ->  20.0/step, wait    +5.7 us, duration 6.0  sort s32[256]
+    waits   7.0 ->  16.0/step, wait    -5.4 us, duration -7.8  distributed_all_reduce bf16[32,2048]
+    waits   1.0 ->  20.0/step, wait    -4.4 us, duration 6.2  fusion bf16[32,16]

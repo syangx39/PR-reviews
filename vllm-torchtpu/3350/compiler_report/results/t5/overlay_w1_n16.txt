@@ -1,0 +1,31 @@
+A: n16 steps 30; module us/step median 5799.9 mean 5855.1; overlay waits/step median 57.0 totalling 67.8 us (mean 67.8)
+   line 'Async XLA Ops': 34350 events in steps; top [('%copy-start.609 = (s32[257]{0:T(512)}, s32[257]{0:T(512)S(1)}, u32[]{:', 30), ('%copy-start.459 = (s32[256]{0:T(256)}, s32[256]{0:T(256)S(1)}, u32[]{:', 30), ('%copy-start.509 = (s32[256]{0:T(256)}, s32[256]{0:T(256)S(1)}, u32[]{:', 30), ('%copy-start.479 = (s32[256]{0:T(256)}, s32[256]{0:T(256)S(1)}, u32[]{:', 30)]
+   line 'XLA TraceMe': 1740 events in steps; top [('overlay-wait', 1710), ('barrier-cores', 30)]
+B: n16 steps 30; module us/step median 6007.3 mean 6145.3; overlay waits/step median 320.0 totalling 295.6 us (mean 295.5)
+   line 'Async XLA Ops': 35250 events in steps; top [('%copy-start.609 = (s32[257]{0:T(512)}, s32[257]{0:T(512)S(1)}, u32[]{:', 30), ('%copy-start.459 = (s32[256]{0:T(256)}, s32[256]{0:T(256)S(1)}, u32[]{:', 30), ('%copy-start.509 = (s32[256]{0:T(256)}, s32[256]{0:T(256)S(1)}, u32[]{:', 30), ('%copy-start.479 = (s32[256]{0:T(256)}, s32[256]{0:T(256)S(1)}, u32[]{:', 30)]
+   line 'XLA TraceMe': 9630 events in steps; top [('overlay-wait', 9600), ('barrier-cores', 30)]
+
+B - A per step: module (mean) +290.2 us, overlay waits (mean) +227.7 us
+overlay-wait time by the op it falls in (us/step): A, B, B - A, waits/step A, B
+     19.17   113.60   +94.42     7.0  32.0  distributed_all_reduce bf16[16,2048]
+     13.00    58.99   +45.98     8.0  27.0  fused_conv1d_gdn_batched_b4_c1 bf16[16,8,128]
+      0.00    43.94   +43.94     0.0  30.0  select_reduce_fusion.lhs_group_sizes_ref s32[256]
+      0.00    24.76   +24.76     0.0  26.0  fusion bf16[16,2048]
+      0.00    19.32   +19.32     0.0  10.0  as_strided bf16[16,4,192]
+     18.35     6.14   -12.21     3.0   1.0  router_topk f32[16,8]
+      0.00     6.16    +6.16     0.0   1.0  scatter_custom_fusion s32[128]
+      0.00     6.14    +6.14     0.0   1.0  fusion f32[16,4]
+      7.53     1.48    -6.05     6.0  35.0  sort s32[128]
+      1.64     6.46    +4.82     7.0  28.0  fused_conv1d_gdn_per_seq_b1_c16 bf16[16,8,128]
+      6.10     3.43    -2.67     1.0   1.0  gather_fusion bf16[128,2048]
+      0.00     1.04    +1.04     0.0  27.0  fusion bf16[16,256]
+      0.00     0.82    +0.82     0.0  25.0  fusion bf16[16,8,128]
+      0.00     0.80    +0.80     0.0   9.0  fusion bf16[16,4,256]
+      0.07     0.31    +0.24     7.0  30.0  reshape.qkv_ref f32[16,1,2048]
+      0.98     1.22    +0.24     6.0  30.0  convert_reduce_fusion bf16[16,2048]
+      0.04     0.00    -0.04     5.0   0.0  as_strided bf16[16,5,512]
+      0.88     0.88    -0.00     1.0   1.0  (between ops)
+      0.03     0.03    -0.00     3.0   3.0  gather_fusion s32[16]
+      0.01     0.01    -0.00     1.0   1.0  fusion f32[16]
+      0.01     0.01    -0.00     1.0   1.0  fusion s32[1]
+      0.01     0.01    +0.00     1.0   1.0  reduce-window s32[2,128]

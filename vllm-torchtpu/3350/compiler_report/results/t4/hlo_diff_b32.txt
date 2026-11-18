@@ -1,0 +1,252 @@
+# A: 40 router_topk, 5820 ENTRY instrs, layer seg 5820 lines
+# B: 40 router_topk, 5902 ENTRY instrs, layer seg 5902 lines
+--- A
++++ B
+@@ -39,0 +40 @@
++param = pred[4096] parameter()
+@@ -209,0 +211 @@
++weights_ref_gdn_dt_bias = bf16[8] parameter()
+@@ -211 +212,0 @@
+-weights_ref_gdn_dt_bias = bf16[8] parameter()
+@@ -867,0 +869 @@
++as_strided = pred[32] slice(param)
+@@ -1148,0 +1151 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1173 +1176,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -1297,0 +1302 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1325 +1330,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -1450,0 +1457 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1478 +1485,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -1552,0 +1561 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1572 +1581,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -1672,0 +1683 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1700 +1711,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -1798,0 +1811 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1826 +1839,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -1924,0 +1939 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -1952 +1967,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2018,0 +2035 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2040 +2057,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2140,0 +2159 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2168 +2187,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2266,0 +2287 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2294 +2315,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2392,0 +2415 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2420 +2443,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2486,0 +2511 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2508 +2533,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2608,0 +2635 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2636 +2663,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2734,0 +2763 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2762 +2791,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2860,0 +2891 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2888 +2919,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -2954,0 +2987 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -2976 +3009,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3076,0 +3111 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3104 +3139,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3202,0 +3239 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3230 +3267,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3328,0 +3367 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3356 +3395,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3422,0 +3463 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3444 +3485,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3544,0 +3587 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3572 +3615,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3670,0 +3715 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3698 +3743,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3796,0 +3843 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3824 +3871,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -3890,0 +3939 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -3912 +3961,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4012,0 +4063 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4040 +4091,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4138,0 +4191 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4166 +4219,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4264,0 +4319 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4292 +4347,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4358,0 +4415 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4380 +4437,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4480,0 +4539 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4508 +4567,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4606,0 +4667 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4634 +4695,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4732,0 +4795 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4760 +4823,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4826,0 +4891 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4848 +4913,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -4948,0 +5015 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -4976 +5043,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5074,0 +5143 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5102 +5171,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5200,0 +5271 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5228 +5299,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5294,0 +5367 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5316 +5389,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5416,0 +5491 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5444 +5519,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5542,0 +5619 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5570 +5647,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5668,0 +5747 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5697 +5776,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop
+@@ -5765,0 +5846 @@
++copy-start = (pred[32]@S1, pred[32], u32[]@S2) copy-start(as_strided)
+@@ -5788 +5869,2 @@
+-compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion) kLoop
++copy-done = pred[32]@S1 copy-done(copy-start)
++compare_and_fusion = (pred[32,8]@S1, pred[32,8]@S1, bf16[32,8]@S1) fusion(router_topk, router_topk, broadcast_maximum_fusion, copy-done) kLoop

@@ -1,0 +1,29 @@
+nodes:
+  host-e01 (g0): base_off=['base_off_k1', 'base_off_k2'], base_on=['base_on_k1'], final_on=['final_on_k1']
+  host-e02 (g1): base_off=['base_off_k3'], base_on=['base_on_k3', 'base_on_k4'], final_on=['final_on_k3']
+repeats on different nodes (not A/A):
+  final_on: host-e02 ['final_on_k3']; host-e01 ['final_on_k1']
+
+base_on vs base_off (same node): n | g0 delta (noise) | g1 delta (noise) | max repeat spread | reading
+  n= 16 |  +0.70% (0.11) |  +0.50% (0.11) | 0.45% | slower
+  n= 32 |  +0.80% (0.08) |  +0.46% (0.06) | 0.30% | slower
+  n=128 |  -0.82% (0.14) |  -0.91% (0.09) | 0.32% | faster
+  n=256 |  +0.61% (0.03) |  +0.49% (0.06) | 2.89% | slower
+
+final_on vs base_on (same node): n | g0 delta (noise) | g1 delta (noise) | max repeat spread | reading
+  n= 16 |  +4.03% (0.11) |  +3.99% (0.11) | 0.33% | slower
+  n= 32 |  -1.28% (0.08) |  -1.44% (0.06) | 0.27% | faster
+  n=128 |  -0.01% (0.14) |  -0.11% (0.09) | 0.22% | -
+  n=256 |  -0.02% (0.03) |  -0.00% (0.06) | 2.65% | -
+
+final_on vs base_off (same node): n | g0 delta (noise) | g1 delta (noise) | max repeat spread | reading
+  n= 16 |  +4.76% (0.11) |  +4.50% (0.11) | 0.45% | slower
+  n= 32 |  -0.49% (0.08) |  -0.99% (0.06) | 0.30% | faster
+  n=128 |  -0.83% (0.14) |  -1.02% (0.09) | 0.32% | faster
+  n=256 |  +0.59% (0.03) |  +0.48% (0.06) | 2.89% | slower
+
+A/A (same node):
+  host-e01 base_off ['base_off_k1', 'base_off_k2']: n16:-0.11 n32:+0.08 n128:+0.14 n256:+0.03
+  host-e02 base_on ['base_on_k3', 'base_on_k4']: n16:-0.11 n32:+0.06 n128:-0.09 n256:+0.06
+
+* noise borrowed from another node (no valid A/A on this node)

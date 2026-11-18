@@ -1,0 +1,76 @@
+anchor A: tt_jit_ir_ops_L89C0_fused_add_rms_norm_to_copy_copy_(3071809948165506109) steps 32
+anchor B: tt_jit_ir_ops_L89C0_fused_add_rms_norm_to_copy_copy_(2855544052435770862) steps 32
+A: steps 30  module us/step median 5799.9  ops-busy 5631.4  idle-in-module 55.0  ops/step 4747.0
+B: steps 30  module us/step median 6007.3  ops-busy 5951.1  idle-in-module 54.6  ops/step 4808.0
+
+per step, B - A: aligned-op duration +315.5 us, aligned-op idle gap -27.0 us, unaligned ops +1.8 us (incl. their gaps)
+module time per step B - A: +290.2 us
+
+by op kind (us/step): duration delta, gap delta, count/step
+  dur  +120.25  gap    -0.00  x 81.0  distributed_all_reduce bf16[16,2048]
+  dur   +54.38  gap    +0.00  x 40.0  select_reduce_fusion.lhs_group_sizes_ref s32[256]
+  dur   +46.98  gap    -0.00  x 30.0  fused_conv1d_gdn_batched_b4_c1 bf16[16,8,128]
+  dur   +32.45  gap    +0.00  x121.0  fusion bf16[16,2048]
+  dur    +0.00  gap   -26.16  x  3.0  scatter_offload_async_start
+  dur   +21.88  gap    +0.00  x 10.0  as_strided bf16[16,4,192]
+  dur   -12.48  gap    +0.00  x 40.0  router_topk f32[16,8]
+  dur   +11.83  gap    +0.00  x 50.0  fusion bf16[16,256]
+  dur    +8.20  gap    -0.00  x 30.0  fusion bf16[16,8,128]
+  dur    +6.79  gap    +0.09  x 40.0  compare_and_fusion pred[16,8]
+  dur    +6.45  gap    -0.00  x 40.0  scatter_custom_fusion s32[128]
+  dur    +6.37  gap    +0.00  x 10.0  fusion f32[16,4]
+
+unaligned ops (us/step):
+     +1.29  +as_strided pred[16]
+     -0.56  -broadcast_51_args_5_.args_5_ s32[4]
+     -0.53  -broadcast_52_args_4_.args_4_ s32[3]
+     +0.53  +broadcast_51_args_6_.args_6_ s32[6]
+     +0.52  +broadcast_53_args_4_.args_4_ s32[3]
+     +0.52  +broadcast_52_args_5_.args_5_ s32[4]
+     -0.52  -broadcast_50_args_6_.args_6_ s32[6]
+     +0.45  +copy-start pred[16]
+     +0.43  +broadcast_75__.clone._ bf16[16,8,128]
+     -0.43  -broadcast_74__.clone._ bf16[16,8,128]
+
+by layer (us/step): duration delta, gap delta
+  layer  0: dur   +0.69  gap  -27.09
+  layer  1: dur   +5.13  gap   +0.00
+  layer  2: dur   +7.61  gap   +0.00
+  layer  3: dur   +3.13  gap   +0.01
+  layer  4: dur  +10.08  gap   +0.00
+  layer  5: dur   +3.65  gap   +0.01
+  layer  6: dur  +11.18  gap   +0.00
+  layer  7: dur   +9.36  gap   +0.00
+  layer  8: dur   +9.37  gap   +0.00
+  layer  9: dur  +11.25  gap   +0.01
+  layer 10: dur   +4.58  gap   +0.00
+  layer 11: dur   +3.28  gap   +0.00
+  layer 12: dur   +9.52  gap   +0.00
+  layer 13: dur  +11.48  gap   +0.01
+  layer 14: dur   +4.19  gap   +0.00
+  layer 15: dur   +9.28  gap   +0.00
+  layer 16: dur  +10.03  gap   +0.01
+  layer 17: dur  +11.69  gap   +0.00
+  layer 18: dur  +18.13  gap   +0.00
+  layer 19: dur   -6.73  gap   -0.00
+  layer 20: dur   +1.81  gap   -0.00
+  layer 21: dur  +11.19  gap   +0.00
+  layer 22: dur  +11.25  gap   +0.00
+  layer 23: dur   +9.46  gap   +0.00
+  layer 24: dur   +9.59  gap   +0.00
+  layer 25: dur  +11.79  gap   +0.00
+  layer 26: dur   +3.58  gap   +0.01
+  layer 27: dur  +17.10  gap   +0.01
+  layer 28: dur   -4.58  gap   -0.01
+  layer 29: dur  +11.47  gap   +0.00
+  layer 30: dur  +11.43  gap   +0.00
+  layer 31: dur   +6.30  gap   +0.00
+  layer 32: dur  +10.04  gap   -0.00
+  layer 33: dur  +11.22  gap   +0.01
+  layer 34: dur  +11.56  gap   +0.00
+  layer 35: dur   +3.29  gap   +0.00
+  layer 36: dur   +7.58  gap   -0.02
+  layer 37: dur   +8.86  gap   +0.01
+  layer 38: dur  +11.65  gap   +0.00
+  layer 39: dur   +3.06  gap   +0.00
+  layer 40: dur   +0.93  gap   +0.00
