@@ -1,0 +1,195 @@
+t29: FP8 ROW_COUNT (prototype, not in the PR) vs existing FP8 ZERO_WEIGHT vs skip off (S0)
+Qwen/Qwen3.5-35B-A3B-FP8 (rev 9d1823d2, text weights), TPU v7x 2x2x1, TP=4, ordinary fused_moe_gmm, KV pinned to 11,052 blocks.
+Arms: fp8rck11052_off = S0 (TPU_MOE_SKIP_PADDED_TOKENS=0); _zw = existing FP8 ZERO_WEIGHT (flag on);
+      _rc = ROW_COUNT prototype (flag on + TPU_MOE_SKIP_FP8_ROW_COUNT=1); upbasek11052_off/on = parent 6cc233d90.
+Outputs below were regenerated from the files in this folder with the commands in README.md (CPU only).
+
+====================================================================================================
+## tool self-test
+====================================================================================================
+61 / 61 expectations hold
+
+====================================================================================================
+## D1 numerics (results/t29-fp8-f2-numerics + direct check)
+====================================================================================================
+## arms
+  fp8rck11052_off_n1         S0         node=host-19  programs per rank after pass 1 / 2: {0: 398, 1: 397, 2: 398, 3: 397} / {0: 398, 1: 397, 2: 398, 3: 397}
+  fp8rck11052_off_n2         S0         node=host-19  programs per rank after pass 1 / 2: {0: 397, 1: 397, 2: 397, 3: 397} / {0: 397, 1: 397, 2: 397, 3: 397}
+  fp8rck11052_rc_n1          RC         node=host-19  programs per rank after pass 1 / 2: {0: 397, 1: 397, 2: 397, 3: 397} / {0: 397, 1: 397, 2: 397, 3: 397}
+  fp8rck11052_zw_n1          ZW         node=host-19  programs per rank after pass 1 / 2: {0: 397, 1: 398, 2: 398, 3: 398} / {0: 397, 1: 398, 2: 398, 3: 398}
+  upbasek11052_off_n1        upbase_off node=host-19  programs per rank after pass 1 / 2: {0: 397, 1: 397, 2: 397, 3: 397} / {0: 397, 1: 397, 2: 397, 3: 397}
+  upbasek11052_on_n1         upbase_on  node=host-19  programs per rank after pass 1 / 2: {0: 398, 1: 397, 2: 397, 3: 397} / {0: 398, 1: 397, 2: 397, 3: 397}
+
+## pairs (cases n1 / n10 / n40 + switch pass 1: ids, chosen-token logprobs, lengths, finish)
+  S0#2       vs S0#1 : bit-identical (66641 tokens)
+  RC         vs S0#1 : bit-identical (66641 tokens)
+  upbase_off vs S0#1 : bit-identical (66641 tokens)
+  upbase_on  vs ZW   : bit-identical (66641 tokens)
+  ZW         vs S0#1 : bit-identical (66641 tokens)
+  RC         vs ZW   : bit-identical (66641 tokens)
+
+## warm switch: pass 2 vs pass 1 inside each arm
+  fp8rck11052_off_n1         bit-identical
+  fp8rck11052_off_n2         bit-identical
+  fp8rck11052_rc_n1          bit-identical
+  fp8rck11052_zw_n1          bit-identical
+  upbasek11052_off_n1        bit-identical
+  upbasek11052_on_n1         bit-identical
+
+## N2 direct check: PASS (98 configs, 0 failed); runtime layout {"w13_weight": ["torch.float8_e4m3fn", [256, 2048, 256]], "w13_weight_scale_inv": ["torch.float32", [256, 1, 1, 256]], "w2_weight": ["torch.float8_e4m3fn", [256, 128, 2048]], "w2_weight_scale_inv": ["torch.float32", [256, 1, 1, 2048]]}
+
+D1 numerics gate: PASS
+
+====================================================================================================
+## F3 one-host screen
+====================================================================================================
+
+## host group f3 (host-20): fp8rck11052_off_s1 -> fp8rck11052_zw_s1 -> fp8rck11052_rc_s1 -> fp8rck11052_rc_s2 -> fp8rck11052_zw_s2 -> fp8rck11052_off_s2
+
+## per point (SCREEN); delta = mean of the paired deltas (#1 vs #1, #2 vs #2), band = max(0.1%, |A/A|)
+  n=  1  f3: S0 5.1531 ZW 3.5642 RC 3.7005 ms
+         RC vs ZW               repeatable regression  f3 +3.827% (pairs +5.100/+2.554, band 2.075)
+         RC vs S0               repeatable gain  f3 -28.189% (pairs -27.503/-28.875, band 2.075)
+         ZW vs S0               repeatable gain  f3 -30.834% (pairs -31.021/-30.647, band 0.356)
+  n= 15  f3: S0 8.0138 ZW 7.7738 RC 7.7619 ms
+         RC vs ZW               repeatable gain  f3 -0.153% (pairs -0.191/-0.114, band 0.100)
+         RC vs S0               repeatable gain  f3 -3.143% (pairs -3.067/-3.218, band 0.179)
+         ZW vs S0               repeatable gain  f3 -2.995% (pairs -2.882/-3.107, band 0.179)
+  n= 16  f3: S0 7.9543 ZW 7.9802 RC 7.9714 ms
+         RC vs ZW               repeatable gain  f3 -0.111% (pairs -0.149/-0.072, band 0.100)
+         RC vs S0               repeatable regression  f3 +0.215% (pairs +0.233/+0.197, band 0.100)
+         ZW vs S0               repeatable regression  f3 +0.326% (pairs +0.383/+0.269, band 0.100)
+  n= 17  f3: S0 9.8145 ZW 8.5267 RC 8.5239 ms
+         RC vs ZW               no difference detected at 0.10%  f3 -0.033% (pairs -0.044/-0.022, band 0.100)
+         RC vs S0               repeatable gain  f3 -13.150% (pairs -13.084/-13.215, band 0.175)
+         ZW vs S0               repeatable gain  f3 -13.121% (pairs -13.046/-13.197, band 0.175)
+  n= 64  f3: S0 15.0526 ZW 15.0623 RC 15.0556 ms
+         RC vs ZW               no difference detected at 0.10%  f3 -0.044% (pairs -0.028/-0.061, band 0.100)
+         RC vs S0               no difference detected at 0.10%  f3 +0.020% (pairs +0.046/-0.006, band 0.100)
+         ZW vs S0               no difference detected at 0.10%  f3 +0.064% (pairs +0.074/+0.054, band 0.100)
+  n=255  f3: S0 28.2194 ZW 28.1801 RC 28.1763 ms
+         RC vs ZW               no difference detected at 0.10%  f3 -0.013% (pairs -0.021/-0.006, band 0.100)
+         RC vs S0               repeatable gain  f3 -0.153% (pairs -0.127/-0.179, band 0.100)
+         ZW vs S0               repeatable gain  f3 -0.139% (pairs -0.106/-0.173, band 0.100)
+  n=256  f3: S0 28.2035 ZW 28.2295 RC 28.2242 ms
+         RC vs ZW               no difference detected at 0.10%  f3 -0.019% (pairs -0.029/-0.009, band 0.100)
+         RC vs S0               no difference detected at 0.10%  f3 +0.073% (pairs +0.105/+0.041, band 0.100)
+         ZW vs S0               no difference detected at 0.10%  f3 +0.092% (pairs +0.134/+0.050, band 0.100)
+
+====================================================================================================
+## F4p parent anchor
+====================================================================================================
+
+## host group f4p (host-21): upbasek11052_off_p1 -> fp8rck11052_off_p1 -> upbasek11052_on_p1 -> fp8rck11052_zw_p1 -> fp8rck11052_zw_p2 -> upbasek11052_on_p2 -> fp8rck11052_off_p2 -> upbasek11052_off_p2
+
+## per point (FINAL); delta = mean of the paired deltas (#1 vs #1, #2 vs #2), band = max(0.1%, |A/A|)
+  n=  1  f4p: upbase_off 5.1476 S0 5.1436 upbase_on 3.5848 ZW 3.5956 ms
+         upbase_off vs S0       no difference detected at 0.61%  f4p +0.077% (pairs -0.227/+0.381, band 0.609)
+         upbase_on vs ZW        no difference detected at 0.61%  f4p -0.301% (pairs +0.153/-0.756, band 0.609)
+  n= 16  f4p: upbase_off 7.9490 S0 7.9520 upbase_on 7.9689 ZW 7.9722 ms
+         upbase_off vs S0       no difference detected at 0.26%  f4p -0.037% (pairs -0.155/+0.081, band 0.264)
+         upbase_on vs ZW        no difference detected at 0.10%  f4p -0.041% (pairs -0.072/-0.009, band 0.104)
+  n=256  f4p: upbase_off 28.2001 S0 28.2074 upbase_on 28.2255 ZW 28.2190 ms
+         upbase_off vs S0       no difference detected at 0.10%  f4p -0.026% (pairs -0.026/-0.026, band 0.100)
+         upbase_on vs ZW        no difference detected at 0.10%  f4p +0.023% (pairs -0.007/+0.053, band 0.100)
+
+====================================================================================================
+## F4 two-host confirm, strict (pre-registered grouping)
+====================================================================================================
+INCOMPLETE: group f4a: sessions span 2 pods host-22-pod1: fp8rck11052_off_a1, fp8rck11052_zw_a1, fp8rck11052_rc_a1, fp8rck11052_rc_a2, fp8rck11052_zw_a2 | host-22-pod2: fp8rck11052_off_a2 (rev3 6.2: a session after a preemption / pod rebuild starts a new group)
+INCOMPLETE: group f4b: sessions span 2 pods host-23-pod1: fp8rck11052_rc_b1, fp8rck11052_zw_b1, fp8rck11052_off_b1, fp8rck11052_off_b2, fp8rck11052_zw_b2 | host-23-pod2: fp8rck11052_rc_b2 (rev3 6.2: a session after a preemption / pod rebuild starts a new group)
+
+verdict: INCOMPLETE (no performance conclusion)
+
+====================================================================================================
+## F4 two-host confirm, --accept-pod-boundary (SUPPLEMENTARY)
+====================================================================================================
+
+## host group f4a (host-22): fp8rck11052_off_a1 -> fp8rck11052_zw_a1 -> fp8rck11052_rc_a1 -> fp8rck11052_rc_a2 -> fp8rck11052_zw_a2 -> fp8rck11052_off_a2
+
+## host group f4b (host-23): fp8rck11052_rc_b1 -> fp8rck11052_zw_b1 -> fp8rck11052_off_b1 -> fp8rck11052_off_b2 -> fp8rck11052_zw_b2 -> fp8rck11052_rc_b2
+
+## per point (SUPPLEMENTARY); delta = mean of the paired deltas (#1 vs #1, #2 vs #2), band = max(0.1%, |A/A|)
+  n=  1  f4a: S0 5.1316 ZW 3.5303 RC 3.5712 | f4b: S0 5.1434 ZW 3.5312 RC 3.6363 ms
+         RC vs ZW               INCONCLUSIVE  [investigate]  f4a +1.163% (pairs -0.171/+2.498, band 2.206); f4b +2.974% (pairs +3.777/+2.171, band 1.467)
+         RC vs S0               repeatable gain  f4a -30.409% (pairs -30.995/-29.823, band 2.206); f4b -29.303% (pairs -28.781/-29.824, band 1.467)
+         ZW vs S0               repeatable gain  f4a -31.205% (pairs -30.877/-31.533, band 0.500); f4b -31.345% (pairs -31.374/-31.315, band 0.100)
+  n=  2  f4a: S0 5.4538 ZW 3.9175 RC 3.9165 | f4b: S0 5.4681 ZW 3.9091 RC 3.9220 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.025% (pairs -0.487/+0.436, band 0.563); f4b +0.328% (pairs +0.638/+0.018, band 0.755)
+         RC vs S0               repeatable gain  f4a -28.187% (pairs -28.251/-28.123, band 0.563); f4b -28.276% (pairs -28.011/-28.541, band 0.755)
+         ZW vs S0               repeatable gain  f4a -28.168% (pairs -27.900/-28.435, band 0.384); f4b -28.510% (pairs -28.467/-28.554, band 0.140)
+  n=  4  f4a: S0 6.0530 ZW 4.6607 RC 4.6547 | f4b: S0 6.0656 ZW 4.6506 RC 4.6561 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.127% (pairs -0.591/+0.336, band 0.668); f4b +0.118% (pairs +0.148/+0.088, band 0.305)
+         RC vs S0               repeatable gain  f4a -23.101% (pairs -23.206/-22.996, band 0.668); f4b -23.238% (pairs -23.121/-23.355, band 0.305)
+         ZW vs S0               repeatable gain  f4a -23.002% (pairs -22.749/-23.254, band 0.393); f4b -23.328% (pairs -23.234/-23.422, band 0.245)
+  n=  8  f4a: S0 6.9742 ZW 5.9227 RC 5.9102 | f4b: S0 6.9931 ZW 5.9139 RC 5.9180 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.211% (pairs -0.486/+0.063, band 0.364); f4b +0.069% (pairs +0.120/+0.018, band 0.274)
+         RC vs S0               repeatable gain  f4a -15.257% (pairs -15.323/-15.192, band 0.364); f4b -15.373% (pairs -15.250/-15.497, band 0.274)
+         ZW vs S0               repeatable gain  f4a -15.077% (pairs -14.909/-15.245, band 0.209); f4b -15.432% (pairs -15.351/-15.512, band 0.173)
+  n= 10  f4a: S0 7.4335 ZW 6.5466 RC 6.5336 | f4b: S0 7.4524 ZW 6.5391 RC 6.5424 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.197% (pairs -0.432/+0.037, band 0.279); f4b +0.050% (pairs +0.064/+0.037, band 0.195)
+         RC vs S0               repeatable gain  f4a -12.106% (pairs -12.159/-12.054, band 0.279); f4b -12.211% (pairs -12.126/-12.295, band 0.195)
+         ZW vs S0               repeatable gain  f4a -11.932% (pairs -11.778/-12.086, band 0.191); f4b -12.255% (pairs -12.182/-12.328, band 0.169)
+  n= 12  f4a: S0 7.7631 ZW 7.0722 RC 7.0556 | f4b: S0 7.7818 ZW 7.0657 RC 7.0681 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.235% (pairs -0.416/-0.054, band 0.211); f4b +0.033% (pairs +0.020/+0.047, band 0.137)
+         RC vs S0               repeatable gain  f4a -9.114% (pairs -9.123/-9.106, band 0.211); f4b -9.172% (pairs -9.136/-9.208, band 0.110)
+         ZW vs S0               repeatable gain  f4a -8.900% (pairs -8.743/-9.057, band 0.192); f4b -9.202% (pairs -9.154/-9.250, band 0.137)
+  n= 14  f4a: S0 7.9316 ZW 7.5410 RC 7.5281 | f4b: S0 7.9518 ZW 7.5366 RC 7.5349 ms
+         RC vs ZW               no difference detected at 0.27%  f4a -0.171% (pairs -0.382/+0.040, band 0.266); f4b -0.022% (pairs -0.067/+0.023, band 0.156)
+         RC vs S0               repeatable gain  f4a -5.087% (pairs -5.139/-5.035, band 0.266); f4b -5.244% (pairs -5.229/-5.258, band 0.100)
+         ZW vs S0               repeatable gain  f4a -4.924% (pairs -4.775/-5.073, band 0.158); f4b -5.222% (pairs -5.165/-5.279, band 0.156)
+  n= 15  f4a: S0 7.9891 ZW 7.7541 RC 7.7392 | f4b: S0 8.0099 ZW 7.7500 RC 7.7491 ms
+         RC vs ZW               no difference detected at 0.23%  f4a -0.192% (pairs -0.384/-0.001, band 0.230); f4b -0.011% (pairs -0.062/+0.040, band 0.149)
+         RC vs S0               repeatable gain  f4a -3.128% (pairs -3.167/-3.088, band 0.230); f4b -3.256% (pairs -3.245/-3.267, band 0.100)
+         ZW vs S0               repeatable gain  f4a -2.941% (pairs -2.794/-3.088, band 0.153); f4b -3.246% (pairs -3.186/-3.305, band 0.149)
+  n= 16  f4a: S0 7.9274 ZW 7.9627 RC 7.9469 | f4b: S0 7.9501 ZW 7.9590 RC 7.9550 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.197% (pairs -0.363/-0.031, band 0.180); f4b -0.050% (pairs -0.118/+0.017, band 0.139)
+         RC vs S0               INCONCLUSIVE  [investigate]  f4a +0.246% (pairs +0.244/+0.248, band 0.180); f4b +0.061% (pairs +0.064/+0.057, band 0.100)
+         ZW vs S0               INCONCLUSIVE  [investigate]  f4a +0.445% (pairs +0.609/+0.280, band 0.176); f4b +0.111% (pairs +0.182/+0.040, band 0.139)
+  n= 17  f4a: S0 9.7876 ZW 8.5167 RC 8.5067 | f4b: S0 9.8159 ZW 8.5120 RC 8.5220 ms
+         RC vs ZW               INCONCLUSIVE  [investigate]  f4a -0.118% (pairs -0.240/+0.005, band 0.143); f4b +0.118% (pairs +0.103/+0.132, band 0.100)
+         RC vs S0               repeatable gain  f4a -13.087% (pairs -13.183/-12.991, band 0.143); f4b -13.181% (pairs -13.167/-13.195, band 0.100)
+         ZW vs S0               repeatable gain  f4a -12.985% (pairs -12.975/-12.995, band 0.102); f4b -13.283% (pairs -13.257/-13.310, band 0.100)
+  n= 24  f4a: S0 10.6736 ZW 9.8301 RC 9.8187 | f4b: S0 10.7036 ZW 9.8306 RC 9.8378 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.116% (pairs -0.184/-0.048, band 0.100); f4b +0.073% (pairs +0.061/+0.085, band 0.100)
+         RC vs S0               repeatable gain  f4a -8.010% (pairs -8.080/-7.940, band 0.100); f4b -8.089% (pairs -8.082/-8.095, band 0.100)
+         ZW vs S0               repeatable gain  f4a -7.903% (pairs -7.911/-7.896, band 0.100); f4b -8.156% (pairs -8.138/-8.173, band 0.100)
+  n= 31  f4a: S0 11.0859 ZW 10.8723 RC 10.8611 | f4b: S0 11.1163 ZW 10.8736 RC 10.8796 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.103% (pairs -0.184/-0.023, band 0.100); f4b +0.055% (pairs +0.045/+0.064, band 0.100)
+         RC vs S0               repeatable gain  f4a -2.028% (pairs -2.081/-1.975, band 0.100); f4b -2.130% (pairs -2.124/-2.136, band 0.100)
+         ZW vs S0               repeatable gain  f4a -1.926% (pairs -1.900/-1.953, band 0.100); f4b -2.183% (pairs -2.168/-2.198, band 0.100)
+  n= 32  f4a: S0 10.9900 ZW 11.0022 RC 10.9928 | f4b: S0 11.0209 ZW 11.0053 RC 11.0126 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.086% (pairs -0.154/-0.018, band 0.100); f4b +0.066% (pairs +0.042/+0.090, band 0.100)
+         RC vs S0               INCONCLUSIVE  f4a +0.025% (pairs -0.044/+0.094, band 0.100); f4b -0.075% (pairs -0.086/-0.064, band 0.100)
+         ZW vs S0               INCONCLUSIVE  [investigate]  f4a +0.111% (pairs +0.110/+0.112, band 0.100); f4b -0.141% (pairs -0.128/-0.154, band 0.100)
+  n= 64  f4a: S0 15.0145 ZW 15.0340 RC 15.0300 | f4b: S0 15.0425 ZW 15.0521 RC 15.0331 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.026% (pairs -0.095/+0.042, band 0.100); f4b -0.126% (pairs -0.163/-0.089, band 0.100)
+         RC vs S0               INCONCLUSIVE  [investigate]  f4a +0.104% (pairs +0.039/+0.168, band 0.100); f4b -0.062% (pairs -0.096/-0.028, band 0.100)
+         ZW vs S0               INCONCLUSIVE  [investigate]  f4a +0.130% (pairs +0.134/+0.126, band 0.100); f4b +0.064% (pairs +0.068/+0.061, band 0.100)
+  n=128  f4a: S0 20.2356 ZW 20.2684 RC 20.2502 | f4b: S0 20.2771 ZW 20.2886 RC 20.2631 ms
+         RC vs ZW               INCONCLUSIVE  f4a -0.090% (pairs -0.126/-0.054, band 0.100); f4b -0.126% (pairs -0.120/-0.131, band 0.100)
+         RC vs S0               INCONCLUSIVE  f4a +0.072% (pairs +0.062/+0.082, band 0.100); f4b -0.069% (pairs -0.097/-0.041, band 0.100)
+         ZW vs S0               INCONCLUSIVE  [investigate]  f4a +0.162% (pairs +0.188/+0.137, band 0.100); f4b +0.057% (pairs +0.024/+0.090, band 0.100)
+  n=250  f4a: S0 28.1325 ZW 27.9584 RC 27.9373 | f4b: S0 28.1653 ZW 27.9644 RC 27.9489 ms
+         RC vs ZW               no difference detected at 0.10%  f4a -0.075% (pairs -0.105/-0.045, band 0.100); f4b -0.055% (pairs -0.067/-0.043, band 0.100)
+         RC vs S0               repeatable gain  f4a -0.694% (pairs -0.711/-0.677, band 0.100); f4b -0.768% (pairs -0.793/-0.743, band 0.100)
+         ZW vs S0               repeatable gain  f4a -0.619% (pairs -0.606/-0.632, band 0.100); f4b -0.713% (pairs -0.726/-0.701, band 0.100)
+  n=255  f4a: S0 28.1891 ZW 28.1601 RC 28.1367 | f4b: S0 28.2244 ZW 28.1640 RC 28.1452 ms
+         RC vs ZW               no difference detected at 0.10%  f4a -0.083% (pairs -0.129/-0.037, band 0.100); f4b -0.067% (pairs -0.087/-0.046, band 0.100)
+         RC vs S0               repeatable gain  f4a -0.186% (pairs -0.205/-0.167, band 0.100); f4b -0.281% (pairs -0.345/-0.217, band 0.100)
+         ZW vs S0               repeatable gain  f4a -0.103% (pairs -0.076/-0.130, band 0.100); f4b -0.214% (pairs -0.258/-0.171, band 0.100)
+  n=256  f4a: S0 28.1764 ZW 28.2073 RC 28.1850 | f4b: S0 28.2047 ZW 28.2128 RC 28.1922 ms
+         RC vs ZW               no difference detected at 0.10%  f4a -0.079% (pairs -0.112/-0.046, band 0.100); f4b -0.073% (pairs -0.074/-0.072, band 0.100)
+         RC vs S0               INCONCLUSIVE  f4a +0.031% (pairs +0.021/+0.040, band 0.100); f4b -0.044% (pairs -0.066/-0.023, band 0.100)
+         ZW vs S0               INCONCLUSIVE  [investigate]  f4a +0.110% (pairs +0.133/+0.086, band 0.100); f4b +0.029% (pairs +0.008/+0.049, band 0.100)
+
+## decisions (plan rev3 section 6.3)
+  measured n->T: {1: 16, 2: 16, 4: 16, 8: 16, 10: 16, 12: 16, 14: 16, 15: 16, 16: 16, 17: 32, 24: 32, 31: 32, 32: 32, 64: 64, 128: 128, 250: 256, 255: 256, 256: 256}
+  D1 numerics gate: PASS
+  D2: INCONCLUSIVE; regression [], inconclusive [1, 2, 4, 8, 10, 12, 17, 24, 31], within band [14, 15, 250, 255], gain []
+  D3: INCONCLUSIVE; regression [], inconclusive [16, 32, 64, 128], within band [256], gain []
+
+## protocol deviations (report is SUPPLEMENTARY, not a strict rev3 confirmation)
+  group f4a: sessions span 2 pods host-22-pod1: fp8rck11052_off_a1, fp8rck11052_zw_a1, fp8rck11052_rc_a1, fp8rck11052_rc_a2, fp8rck11052_zw_a2 | host-22-pod2: fp8rck11052_off_a2 (rev3 6.2: a session after a preemption / pod rebuild starts a new group)
+  group f4b: sessions span 2 pods host-23-pod1: fp8rck11052_rc_b1, fp8rck11052_zw_b1, fp8rck11052_off_b1, fp8rck11052_off_b2, fp8rck11052_zw_b2 | host-23-pod2: fp8rck11052_rc_b2 (rev3 6.2: a session after a preemption / pod rebuild starts a new group)
+

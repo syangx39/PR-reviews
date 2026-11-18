@@ -2,14 +2,15 @@
 
 [Upstream pull request](https://github.com/vllm-project/vllm-torchtpu/pull/3350) · head `16ed9b0a7` (commits `08a78448e`, `fe5cbee79`, `056cee01c`, `9d9fcb849`, `16ed9b0a7`) on main `6cc233d90`. `9d9fcb849` adds tests only; `16ed9b0a7` addresses the second review's nits (logging, docstrings, an explicit default argument, tests) and was rechecked in t27.
 
-Raw results (gzip JSON written by [`tools/mskip_engine.py`](tools/mskip_engine.py) and the direct check), the analysis scripts, and their outputs. Host names are pseudonymized (`host-NN`, stable across experiments); nothing else in the result files was changed.
+Raw results (gzip JSON written by [`tools/mskip_engine.py`](tools/mskip_engine.py) and the direct check), the analysis scripts, and their outputs. Host names are pseudonymized (`host-NN`, stable across experiments); nothing else in the result files was changed, except that in t29 pod names are pseudonymized as `host-NN-podK`, the local model path is replaced by the model name, and the private image registry path is dropped (the image digest is kept).
 
 ## Source trees
 
 | Tree (label prefix) | Source | Used for |
 |---|---|---|
 | `upbase` | vllm-torchtpu `6cc233d90` (main, the PR's parent) | baseline in every comparison |
-| `up6` | `975685ab2` (the PR head: `16ed9b0a7` + `padded_row_filter` / `row_info` input checks) | t28: unit tests and type check |
+| `fp8rc` | `975685ab2` + [FP8 `ROW_COUNT` prototype](patches/t29-fp8-row-count-prototype-on-975685ab2.diff) (`TPU_MOE_SKIP_FP8_ROW_COUNT=1` routes the ordinary FP8 `fused_moe_gmm` through `PaddedRowFilter.ROW_COUNT`; experiment only, not in the PR) | t29: FP8 `ROW_COUNT` vs `ZERO_WEIGHT` vs skip off |
+| `up6` | `975685ab2` (the PR head: `16ed9b0a7` + `padded_row_filter` / `row_info` input checks) | t28: unit tests and type check; t29 unit tests |
 | `up5mc`, `up5nb` | `16ed9b0a7` with the count copied but no padding-mask write (1 blocking copy per step), and with the count copied non-blocking (0 blocking copies); experiment only | t28: copy cost and async-scheduling overlap |
 | `up5` | `16ed9b0a7` (`9d9fcb849` + the second review's nits) | t27: unit tests and type check, flag-on and flag-off numerics, EP fallback, MTP drafter, XLA dumps vs `up3` |
 | `up4` | `9d9fcb849` (`056cee01c` + TPU tests of the row-count kernel and custom op; same `src/`) | t26: unit tests and type check |
@@ -20,7 +21,7 @@ Raw results (gzip JSON written by [`tools/mskip_engine.py`](tools/mskip_engine.p
 | `base`, `gz` | `15be35dad`, and `15be35dad` + [zero-weight approach](patches/gate-zero-on-15be35d/) | gate-zero comparison quoted in the PR |
 | early `base`, `final`, `epfb` (t3–t16) | `f640d734` (main); `final` = `7e4d170a` (`f640d734` + zero-weight [0001, 0002](patches/zero-weight-on-f640d734/)); `epfb` = `586e11bc` (`final` + [0003](patches/zero-weight-on-f640d734/0003-moe-skip-stock-path-under-ep.patch), stock path under EP) | [compiler report](compiler_report/REPORT.md) (t3–t14), EP switching (t11, t16) |
 
-Arms are labelled `<tree>_<on|off>_<rep>`; `on` means `TPU_MOE_SKIP_PADDED_TOKENS=1`. A tree name ending in `sy` (t28) runs with async scheduling off. A tree name ending in `k<blocks>` (t24, t25, t27, t28) pins the KV cache to that many blocks (`num_gpu_blocks_override`). The arms quoted in the PR:
+Arms are labelled `<tree>_<on|off>_<rep>`; `on` means `TPU_MOE_SKIP_PADDED_TOKENS=1`. A tree name ending in `sy` (t28) runs with async scheduling off. A tree name ending in `k<blocks>` (t24, t25, t27, t28, t29) pins the KV cache to that many blocks (`num_gpu_blocks_override`). In t29 the flag field is `off` (S0, skip off), `zw` (flag on: the existing FP8 `ZERO_WEIGHT` path) or `rc` (flag on + `TPU_MOE_SKIP_FP8_ROW_COUNT=1`). The arms quoted in the PR:
 
 | Arm | Source | Flag | Where |
 |---|---|---|---|
@@ -44,6 +45,10 @@ Arms are labelled `<tree>_<on|off>_<rep>`; `on` means `TPU_MOE_SKIP_PADDED_TOKEN
 | Head `16ed9b0a7`: unit tests 1,174 passed, Pyrefly baseline; numerics + switching sequence (flag on and off), EP fallback and MTP drafter bit-identical to the parent; the fallback warning only in the EP and MTP runs; decode programs identical to `056cee01c`'s (XLA dumps, flag on and off) | `t27/*` (dumps not included) | [t27](summaries/t27_nits_head.txt), [HLO](summaries/hlo_t27_nits.txt) |
 | Blocking padding-state copies: no measurable cost, and they do not break async-scheduling overlap (pre-registered; two hosts, KV pinned, async on / off) | `t28/a1-async-copies`, `t28/a2-async-copies` | [t28](summaries/t28_async_copies.txt) |
 | Head `975685ab2`: unit tests 1,178 passed, Pyrefly baseline | `t28/u0-unit-head` | [t28](summaries/t28_async_copies.txt) |
+| FP8 (follow-up to the FP8 question; Qwen3.5-35B-A3B-FP8, KV pinned to 11,052 blocks): `ROW_COUNT` prototype is bit-identical to skip-off and `ZERO_WEIGHT` (98 / 98 direct configurations; engine greedy + staggered warm switch, 0 new programs) | `t29-fp8-f1b-sanity-unit-direct`, `t29-fp8-f2-numerics` | [t29](summaries/t29_fp8_row_count_vs_zero_weight.txt) |
+| FP8 `ZERO_WEIGHT` vs skip off: repeatable padded-decode speedup (`-31%` at `n = 1`); no BF16-size `n = 16` regression; small full-bucket differences inconclusive | `t29-fp8-f4a-confirm-hostA`, `t29-fp8-f4b-confirm-hostB` (two hosts), `t29-fp8-f3-screen` | [t29](summaries/t29_fp8_row_count_vs_zero_weight.txt) |
+| FP8 `ROW_COUNT` vs `ZERO_WEIGHT`: no repeatable speedup and no repeatable regression at 18 points; two-host comparison is supplementary (one session per host finished in a pod rebuilt after preemption) | `t29-fp8-f4a-confirm-hostA`, `t29-fp8-f4b-confirm-hostB` | [t29](summaries/t29_fp8_row_count_vs_zero_weight.txt) |
+| FP8 parent anchor: `6cc233d90` off / on vs the `fp8rc` tree | `t29-fp8-f4p-parent-anchor` | [t29](summaries/t29_fp8_row_count_vs_zero_weight.txt) |
 | `9d9fcb849`: unit tests 1,174 passed (incl. the 9 added TPU cases), Pyrefly baseline | `t26/u0-unit-head` (status, pytest and Pyrefly logs) | [t26](summaries/t26_unit_tests_head.txt) |
 | `056cee01c`: unit tests 1,165 / parent 1,094, Pyrefly baseline, direct MoE check 45/45 | `t25/q0-unit-n2` | [t25 validation](summaries/t25_validation.txt) |
 | `056cee01c`: numerics + switching sequence vs parent, flag on and off; GSM8K quality (1,319 prompts, greedy and sampled) | `t25/q1-correctness-quality` | [t25 validation](summaries/t25_validation.txt) |
@@ -66,6 +71,17 @@ From this folder (Python 3, standard library):
 
 ```bash
 python3 tools/t28_verdict.py results/t28
+# t29 (FP8): manifests are the pre-registered frozen manifests (scrubbed like the results); --direct needs the unzipped file
+M=results/t29-fp8-manifests
+python3 tools/selftest_t29_tools.py
+gunzip -kf results/t29-fp8-f1b-sanity-unit-direct/fp8d_fp8rc.json.gz
+python3 tools/t29_numerics.py results/t29-fp8-f2-numerics --manifest $M/frozen_t29-f2f3f4p.json \
+    --direct results/t29-fp8-f1b-sanity-unit-direct/fp8d_fp8rc.json --out numerics_f2.json
+python3 tools/t29_verdict.py results/t29-fp8-f3-screen --manifest $M/frozen_t29-f2f3f4p.json --mode f3 --numerics PASS --out f3.json
+python3 tools/t29_verdict.py results/t29-fp8-f4p-parent-anchor --manifest $M/frozen_t29-f2f3f4p.json --mode anchor --numerics PASS --out f4p.json
+mkdir -p f4ab && ln -sfn ../results/t29-fp8-f4a-confirm-hostA f4ab/f4a && ln -sfn ../results/t29-fp8-f4b-confirm-hostB f4ab/f4b
+python3 tools/t29_verdict.py f4ab --manifest $M/frozen_t29-f4ab.json --mode f4 --numerics PASS --out f4_strict.json  # INCOMPLETE (pod boundary)
+python3 tools/t29_verdict.py f4ab --manifest $M/frozen_t29-f4ab.json --mode f4 --numerics PASS --accept-pod-boundary --out f4_supplementary.json
 python3 tools/analyze_mskip.py results/t27/n1-head-on --check --ref upbase_off_f1
 python3 tools/analyze_mskip.py results/t27/n2-head-off --check --ref upbase_off_f1
 python3 tools/analyze_mskip.py results/t27/e1-ep-fallback --check --ref upbase_off_e1

@@ -1,0 +1,1243 @@
+diff --git a/src/vllm_torchtpu/envs.py b/src/vllm_torchtpu/envs.py
+index c8505c731..6b6f52759 100644
+--- a/src/vllm_torchtpu/envs.py
++++ b/src/vllm_torchtpu/envs.py
+@@ -103,6 +103,7 @@ if TYPE_CHECKING:
+     TPU_ENABLE_GDN_DYNAMIC_TILING: bool = False
+     TPU_GDN_PREFILL_CHECKPOINT: bool = True
+     TPU_MOE_SKIP_PADDED_TOKENS: bool = False
++    TPU_MOE_SKIP_FP8_ROW_COUNT: bool = False
+     TPU_MOE_HIERARCHICAL_EP: bool = False
+     TPU_MOE_ROUTER_TOPK: str = "rowmax"
+     TPU_MOE_TOPK_WEIGHTS_FLOAT32: bool = False
+@@ -835,6 +836,10 @@ environment_variables: dict[str, Callable[[], Any]] = {
+     # Skip padded tokens from MoE, otherwise they will route like
+     # real tokens and activate experts whose output is thrown away.
+     "TPU_MOE_SKIP_PADDED_TOKENS": env_bool("TPU_MOE_SKIP_PADDED_TOKENS"),
++    # Experiment (t29, not part of #3350): with TPU_MOE_SKIP_PADDED_TOKENS=1,
++    # the FP8 MoE ordinary routed-GMM path drops padded rows by row index
++    # (PaddedRowFilter.ROW_COUNT) instead of zeroing their routing weights.
++    "TPU_MOE_SKIP_FP8_ROW_COUNT": env_bool("TPU_MOE_SKIP_FP8_ROW_COUNT"),
+     # Hierarchical MoE parallelism: expert-parallel between chips,
+     # tensor-parallel between the two chiplets of a chip. Off by
+     # default; it helps only at low concurrency, where the MoE is
+diff --git a/src/vllm_torchtpu/layers/adapter/moe_skip_policy.py b/src/vllm_torchtpu/layers/adapter/moe_skip_policy.py
+index 5100a2f16..cfe9a468a 100644
+--- a/src/vllm_torchtpu/layers/adapter/moe_skip_policy.py
++++ b/src/vllm_torchtpu/layers/adapter/moe_skip_policy.py
+@@ -113,3 +113,118 @@ def resolve_bf16_moe_skip_policy(
+     if fallback_reason is not None:
+         return Bf16MoeSkipPolicy(enabled=False, fallback_reason=fallback_reason)
+     return Bf16MoeSkipPolicy(enabled=True)
++
++
++# Experiment (t29, not part of #3350): the FP8 MoE row-count filter.
++#
++# With TPU_MOE_SKIP_PADDED_TOKENS=1 and TPU_MOE_SKIP_FP8_ROW_COUNT=1,
++# VllmFp8MoEMethodTPU's ordinary routed-GMM path drops padded rows by row index
++# (PaddedRowFilter.ROW_COUNT) instead of zeroing their routing weights. Every
++# other FP8 path (adaptive fused MoE, fused EP, moe_tp_decode, the pipelined
++# collective / FP8 all-gather, fused_moe_decode, the dense-expert kernel) and
++# every other topology keeps the parent's behavior for the same skip flag (the
++# ordinary path zeroes padded rows' weights when the flag is set; the special
++# paths keep their own handling). Admission contract: only a
++# native serialized FP8 (e4m3) checkpoint with the default runtime layout
++# (MOE_REQUANTIZE_WEIGHT_DTYPE=float8_e4m3fn, no MOE_REQUANTIZE_BLOCK_SIZE, i.e.
++# per-channel scales); the runner re-checks the loaded layers.
++
++_active_fp8_row_count_policy: Fp8RowCountPolicy | None = None
++
++
++@dataclass(frozen=True)
++class Fp8RowCountPolicy:
++    """Whether FP8 MoE layers use the row-count filter, and why not if not."""
++
++    enabled: bool
++    fallback_reason: str | None = None
++
++
++@contextlib.contextmanager
++def fp8_row_count_scope(policy: Fp8RowCountPolicy) -> Iterator[None]:
++    """Publish the runner's FP8 row-count policy to the layers built in it."""
++    global _active_fp8_row_count_policy
++    prev = _active_fp8_row_count_policy
++    _active_fp8_row_count_policy = policy
++    try:
++        yield
++    finally:
++        _active_fp8_row_count_policy = prev
++
++
++def get_active_fp8_row_count_policy() -> Fp8RowCountPolicy | None:
++    """Return the policy published by ``fp8_row_count_scope``, if any."""
++    return _active_fp8_row_count_policy
++
++
++def resolve_fp8_row_count_policy(
++    *,
++    skip_flag: bool,
++    row_count_flag: bool,
++    parallel_config: ParallelConfig,
++    is_fp8_model: bool,
++    checkpoint_fp8_serialized: bool,
++    requant_weight_dtype: str | None,
++    requant_block_size: int | None,
++    pipelined_collective: bool,
++    fp8_all_gather: bool,
++    fused_ep_kernel: bool,
++    fused_decode_kernel: bool,
++    dense_expert_kernel: bool,
++    sequence_parallel: bool,
++    has_speculative: bool,
++    has_lora: bool,
++) -> Fp8RowCountPolicy:
++    """Resolve the experiment policy before any MoE layer or kernel prebuild."""
++    if not (skip_flag and row_count_flag):
++        return Fp8RowCountPolicy(enabled=False)
++    fallback_reason: str | None = None
++    if not is_fp8_model:
++        fallback_reason = "not an FP8 model"
++    elif not checkpoint_fp8_serialized:
++        fallback_reason = "quantize-on-load (checkpoint not FP8-serialized)"
++    elif (requant_weight_dtype or "float8_e4m3fn") != "float8_e4m3fn":
++        fallback_reason = (
++            f"MOE_REQUANTIZE_WEIGHT_DTYPE={requant_weight_dtype} (only float8_e4m3fn)"
++        )
++    elif requant_block_size:
++        fallback_reason = (
++            f"MOE_REQUANTIZE_BLOCK_SIZE={requant_block_size} "
++            "(only the default per-channel runtime scales)"
++        )
++    elif parallel_config.enable_expert_parallel:
++        fallback_reason = "expert parallelism"
++    else:
++        for name, size in (
++            ("data_parallel_size", parallel_config.data_parallel_size),
++            ("pipeline_parallel_size", parallel_config.pipeline_parallel_size),
++            (
++                "prefill_context_parallel_size",
++                parallel_config.prefill_context_parallel_size,
++            ),
++            (
++                "decode_context_parallel_size",
++                parallel_config.decode_context_parallel_size,
++            ),
++        ):
++            if size > 1:
++                fallback_reason = f"{name} > 1"
++                break
++    for flag, reason in (
++        (
++            pipelined_collective,
++            "pipelined MoE collective (TPU_MOE_COLLECTION_CHUNK_SIZE)",
++        ),
++        (fp8_all_gather, "FP8 all-gather (TPU_MOE_FP8_ALL_GATHER)"),
++        (fused_ep_kernel, "fused EP / adaptive MoE kernel"),
++        (fused_decode_kernel, "fused MoE decode kernels"),
++        (dense_expert_kernel, "dense-expert MoE (TPU_MOE_DENSE_EXPERT_THRESHOLD)"),
++        (sequence_parallel, "MoE sequence parallelism (TPU_MOE_SEQUENCE_PARALLEL)"),
++        (has_speculative, "speculative decoding"),
++        (has_lora, "LoRA"),
++    ):
++        if fallback_reason is None and flag:
++            fallback_reason = reason
++    if fallback_reason is not None:
++        return Fp8RowCountPolicy(enabled=False, fallback_reason=fallback_reason)
++    return Fp8RowCountPolicy(enabled=True)
+diff --git a/src/vllm_torchtpu/layers/adapter/quantization/fp8.py b/src/vllm_torchtpu/layers/adapter/quantization/fp8.py
+index 029e2fc26..1e4eb4fa6 100644
+--- a/src/vllm_torchtpu/layers/adapter/quantization/fp8.py
++++ b/src/vllm_torchtpu/layers/adapter/quantization/fp8.py
+@@ -43,7 +43,7 @@ from __future__ import annotations
+ 
+ from collections.abc import Callable
+ from math import gcd
+-from typing import TYPE_CHECKING, Literal, cast
++from typing import TYPE_CHECKING, Any, Literal, cast
+ 
+ import torch
+ from vllm.model_executor.layers.attention import Attention
+@@ -79,7 +79,7 @@ from vllm_torchtpu import envs
+ from vllm_torchtpu.kernels.experimental.adaptive_fused_moe import (
+     vllm_adapter as adaptive_moe,
+ )
+-from vllm_torchtpu.layers.adapter import moe_routing, token_padding
++from vllm_torchtpu.layers.adapter import moe_routing, moe_skip_policy, token_padding
+ from vllm_torchtpu.layers.adapter.fused_moe import (
+     TpuMoEActivationMixin,
+     fused_moe_gmm,
+@@ -103,6 +103,7 @@ from vllm_torchtpu.layers.adapter.quantization.online_fp8 import (
+     map_online_fp8,
+     quantize_online_fp8,
+ )
++from vllm_torchtpu.layers.core.fused_moe_gmm import PaddedRowFilter
+ from vllm_torchtpu.layers.core.quant_methods import FP8, get_tpu_quant_method
+ from vllm_torchtpu.layers.core.quantization import dequantize_tensor, quantize_tensor
+ from vllm_torchtpu.logger import init_logger
+@@ -782,6 +783,11 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+ 
+     _use_adaptive_fused_moe: bool = False
+     _adaptive_fused_moe_op: torch.library.CustomOpDef | None = None
++    # Experiment (t29): the runner's FP8 row-count policy for this layer
++    # (moe_skip_policy.Fp8RowCountPolicy); False keeps the existing behavior.
++    _fp8_row_count: bool = False
++    # Experiment (t29): dtype of the serialized checkpoint's expert weights.
++    _checkpoint_weight_dtype: torch.dtype | None = None
+ 
+     def __init__(
+         self,
+@@ -807,6 +813,56 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+         # vLLM types this as a GPU MoE backend; TPU uses none.
+         # pyrefly: ignore[bad-assignment]
+         self.fp8_backend = None
++        # Experiment (t29): TPUModelRunner publishes the FP8 row-count policy
++        # while it builds the model; a layer built outside that scope keeps
++        # the existing behavior.
++        policy = moe_skip_policy.get_active_fp8_row_count_policy()
++        if (
++            policy is None
++            and envs.TPU_MOE_SKIP_PADDED_TOKENS
++            and envs.TPU_MOE_SKIP_FP8_ROW_COUNT
++        ):
++            logger.warning_once(
++                "TPU_MOE_SKIP_FP8_ROW_COUNT is not applied to an FP8 MoE layer "
++                "built outside TPUModelRunner.load_model(); keeping the "
++                "existing FP8 MoE path."
++            )
++        self._fp8_row_count = policy is not None and policy.enabled
++
++    @property
++    def _padded_row_filter(self) -> PaddedRowFilter:
++        """Experiment (t29): the ordinary routed-GMM call's row filter."""
++        if self._fp8_row_count is True:
++            return PaddedRowFilter.ROW_COUNT
++        return PaddedRowFilter.ZERO_WEIGHT
++
++    def fp8_row_count_contract_violation(self, layer: torch.nn.Module) -> str | None:
++        """Experiment (t29): why ``layer`` is outside the admitted load contract
++        (native FP8 e4m3 checkpoint; float8_e4m3fn runtime weights with
++        per-channel float32 scales [E, 1, 1, N]), or None."""
++        if self._checkpoint_weight_dtype != torch.float8_e4m3fn:
++            return f"checkpoint expert weights {self._checkpoint_weight_dtype}"
++        for name in ("w13", "w2"):
++            w = getattr(layer, f"{name}_weight", None)
++            s = getattr(layer, f"{name}_weight_scale_inv", None)
++            if w is None or w.dtype != torch.float8_e4m3fn or w.ndim != 3:
++                return f"{name} runtime weight {None if w is None else w.dtype}"
++            per_channel = (w.shape[0], 1, 1, w.shape[-1])
++            if s is None or s.dtype != torch.float32 or tuple(s.shape) != per_channel:
++                desc = None if s is None else (tuple(s.shape), s.dtype)
++                return f"{name} runtime scale {desc} (not per-channel float32)"
++        return None
++
++    def disable_fp8_row_count(self, layer: torch.nn.Module | None = None) -> None:
++        """Experiment (t29): back to the existing behavior before tracing."""
++        self._fp8_row_count = False
++        if layer is not None and self._tpu_activation_str is not None:
++            tpu_layer = cast("TpuRoutedExperts", layer)
++            prebuild_fused_moe_kernel(
++                topk=tpu_layer.moe_config.experts_per_token,
++                activation=self._tpu_activation_str,
++                use_ep=tpu_layer.moe_config.moe_parallel_config.use_ep,
++            )
+ 
+     @property
+     def supports_internal_mk(self) -> bool:
+@@ -1006,6 +1062,7 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+ 
+         is_fp8_serialized = self.quant_config.is_checkpoint_fp8_serialized
+         if is_fp8_serialized:
++            self._checkpoint_weight_dtype = layer.w13_weight.dtype
+             moe_block_shape = getattr(self, "moe_block_shape", self.weight_block_size)
+             weight_block_size = (
+                 cast("tuple[int, int]", tuple(moe_block_shape))
+@@ -1077,10 +1134,19 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+                 activation=activation_str,
+             )
+             return
++        row_count_kwargs: dict[str, Any] = {}
++        if self._fp8_row_count is True:
++            # Experiment (t29): prebuild the kernel of the ordinary routed-GMM
++            # call; without the policy the call below is unchanged.
++            row_count_kwargs = {
++                "skip_padded_tokens": True,
++                "padded_row_filter": self._padded_row_filter,
++            }
+         prebuild_fused_moe_kernel(
+             topk=layer.moe_config.experts_per_token,
+             activation=activation_str,
+             use_ep=layer.moe_config.moe_parallel_config.use_ep,
++            **row_count_kwargs,
+         )
+         # Resolve the EP mesh here, not on the first forward: it maps ranks to
+         # TPU device ids with an all_gather_object, and Dynamo cannot trace a
+@@ -1191,7 +1257,22 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+             enable_pipelined_collective_and_compute() or envs.TPU_MOE_FP8_ALL_GATHER
+         )
+ 
+-        if envs.TPU_MOE_SKIP_PADDED_TOKENS:
++        from vllm_torchtpu.layers.adapter.fused_moe_decode import (
++            fused_moe_decode,
++            fused_moe_decode_supported,
++        )
++
++        # Experiment (t29): the row-count filter serves only the ordinary
++        # routed-GMM call at the end. The runner's policy keeps the pipelined
++        # and fused decode paths out of it; refuse if one is taken anyway.
++        row_count = self._fp8_row_count is True
++        if row_count and (owns_collectives or fused_moe_decode_supported(self)):
++            raise RuntimeError(
++                "FP8 MoE row-count filter (TPU_MOE_SKIP_FP8_ROW_COUNT) is on, but "
++                "this layer takes the pipelined or the fused decode path."
++            )
++
++        if envs.TPU_MOE_SKIP_PADDED_TOKENS and not row_count:
+             topk_ids, topk_weights = token_padding.zero_routing_weights_for_padding(
+                 topk_ids,
+                 topk_weights,
+@@ -1200,7 +1281,7 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+ 
+         # Step 2: EP global->local remap happens inside fused_moe_gmm via an
+         # elementwise subtract from `experts_start` (scalar).
+-        kwargs = {
++        kwargs: dict[str, Any] = {
+             "hidden_states": x,
+             "w1": layer.w13_weight,
+             "w2": layer.w2_weight,
+@@ -1217,16 +1298,23 @@ class VllmFp8MoEMethodTPU(TpuMoEActivationMixin, Fp8MoEMethod):
+         if owns_collectives:
+             return pipelined_fused_moe_gmm(**kwargs)
+ 
+-        from vllm_torchtpu.layers.adapter.fused_moe_decode import (
+-            fused_moe_decode,
+-            fused_moe_decode_supported,
+-        )
+-
+         if fused_moe_decode_supported(self):
+             # Armed layer: the runner no longer runs the shared expert or the
+             # all-reduce, so this returns the reduced shared + routed sum.
+             return fused_moe_decode(self, layer, x, topk_weights, topk_ids)
+ 
++        if row_count:
++            # Experiment (t29): rows at index >= the local valid-token count
++            # are padding; routing weights stay as routed.
++            row_info = token_padding.get_local_valid_tokens()
++            if row_info is None:
++                raise RuntimeError(
++                    "FP8 MoE row-count filter is on, but TokenPaddingState does "
++                    "not track valid tokens (track_valid_tokens=False)."
++                )
++            kwargs["skip_padded_tokens"] = True
++            kwargs["padded_row_filter"] = self._padded_row_filter
++            kwargs["row_info"] = row_info
+         return fused_moe_gmm(**kwargs)
+ 
+ 
+diff --git a/src/vllm_torchtpu/runner/tpu_runner.py b/src/vllm_torchtpu/runner/tpu_runner.py
+index 76af59e91..495422d81 100644
+--- a/src/vllm_torchtpu/runner/tpu_runner.py
++++ b/src/vllm_torchtpu/runner/tpu_runner.py
+@@ -138,6 +138,10 @@ from vllm_torchtpu.layers.adapter.pipelined_fused_moe import (
+     enable_pipelined_collective_and_compute,
+ )
+ from vllm_torchtpu.layers.adapter.quantization import get_tpu_quantization_config
++from vllm_torchtpu.layers.adapter.quantization.fp8 import (
++    VllmFp8Config,
++    VllmFp8MoEMethodTPU,
++)
+ from vllm_torchtpu.layers.adapter.quantization.online_fp8 import validate_online_fp8
+ from vllm_torchtpu.layers.adapter.quantization.unquantized import (
+     VllmUnquantizedConfig,
+@@ -1247,6 +1251,8 @@ class TPUModelRunner(GPUModelRunner):
+         # BF16 MoE padded-token skipping policy, resolved before model loading
+         # and MoE kernel prebuild.
+         self._bf16_moe_skip_policy = moe_skip_policy.Bf16MoeSkipPolicy(enabled=False)
++        # Experiment (t29): FP8 MoE row-count filter policy, resolved with it.
++        self._fp8_row_count_policy = moe_skip_policy.Fp8RowCountPolicy(enabled=False)
+         # Set at load when TPU_GREEDY_TOP_TOKENS is on.
+         self._greedy_head_owner: torch.nn.Module | None = None
+ 
+@@ -6015,6 +6021,7 @@ class TPUModelRunner(GPUModelRunner):
+         # Resolve BF16 MoE padded-token skipping before model loading so the
+         # MoE layers, kernel prebuild and TokenPaddingState share one mode.
+         self._bf16_moe_skip_policy = self._resolve_bf16_moe_skip_policy()
++        self._fp8_row_count_policy = self._resolve_fp8_row_count_policy()
+ 
+         # No placed layers or target depth left over from an earlier load.
+         expert_placement.reset_model_state()
+@@ -6027,6 +6034,7 @@ class TPUModelRunner(GPUModelRunner):
+             ),
+             set_current_vllm_config(self.vllm_config),
+             moe_skip_policy.bf16_policy_scope(self._bf16_moe_skip_policy),
++            moe_skip_policy.fp8_row_count_scope(self._fp8_row_count_policy),
+         ):
+             load_model = cast(Callable[..., torch.nn.Module], model_loader.load_model)
+             model = load_model(
+@@ -6037,6 +6045,7 @@ class TPUModelRunner(GPUModelRunner):
+         if self.lora_config is not None:
+             self.model = self.load_lora_model(self.model, self.vllm_config, self.device)
+         self._finalize_bf16_moe_skip_policy_for_model()
++        self._finalize_fp8_row_count_policy_for_model()
+         self._dp_vocab_logits = dp_vocab_parallel.check_layers_sharded_over_dp(
+             self.model
+         )
+@@ -6148,7 +6157,7 @@ class TPUModelRunner(GPUModelRunner):
+             self._token_padding_state = token_padding.TokenPaddingState.create(
+                 max_padded_tokens,
+                 self.device,
+-                track_valid_tokens=self._bf16_moe_skip_policy.enabled,
++                track_valid_tokens=self._padding_state_tracks_valid_tokens(),
+             )
+             token_padding.set_padding_state(self._token_padding_state)
+ 
+@@ -7817,6 +7826,90 @@ class TPUModelRunner(GPUModelRunner):
+             ),
+         )
+ 
++    def _padding_state_tracks_valid_tokens(self) -> bool:
++        """Allocate the valid-token count for the BF16 policy or, experiment
++        (t29), the FP8 row-count policy; never for a rejected FP8 model."""
++        return bool(
++            self._bf16_moe_skip_policy.enabled or self._fp8_row_count_policy.enabled
++        )
++
++    def _resolve_fp8_row_count_policy(self) -> moe_skip_policy.Fp8RowCountPolicy:
++        """Experiment (t29): resolve the FP8 MoE row-count filter policy."""
++        return moe_skip_policy.resolve_fp8_row_count_policy(
++            skip_flag=bool(envs.TPU_MOE_SKIP_PADDED_TOKENS),
++            row_count_flag=bool(envs.TPU_MOE_SKIP_FP8_ROW_COUNT),
++            parallel_config=self.parallel_config,
++            is_fp8_model=isinstance(self.vllm_config.quant_config, VllmFp8Config),
++            checkpoint_fp8_serialized=bool(
++                getattr(
++                    self.vllm_config.quant_config, "is_checkpoint_fp8_serialized", False
++                )
++            ),
++            requant_weight_dtype=envs.MOE_REQUANTIZE_WEIGHT_DTYPE,
++            requant_block_size=envs.MOE_REQUANTIZE_BLOCK_SIZE,
++            pipelined_collective=enable_pipelined_collective_and_compute(),
++            fp8_all_gather=bool(envs.TPU_MOE_FP8_ALL_GATHER),
++            fused_ep_kernel=bool(envs.USE_MOE_FUSED_EP_KERNEL),
++            fused_decode_kernel=bool(
++                envs.USE_MOE_TP_DECODE_KERNEL or envs.FUSED_MOE_DECODE_KERNEL
++            ),
++            dense_expert_kernel=envs.TPU_MOE_DENSE_EXPERT_THRESHOLD > 0,
++            sequence_parallel=bool(envs.TPU_MOE_SEQUENCE_PARALLEL),
++            has_speculative=(
++                self.speculative_config is not None or self.drafter is not None
++            ),
++            has_lora=self.lora_config is not None,
++        )
++
++    def _finalize_fp8_row_count_policy_for_model(self) -> None:
++        """Experiment (t29): keep the row-count filter only if every MoE layer
++        is a ``VllmFp8MoEMethodTPU`` within the load contract; otherwise every
++        FP8 MoE layer keeps the existing behavior. Logs the outcome once."""
++        policy = self._fp8_row_count_policy
++        if not policy.enabled and policy.fallback_reason is None:
++            return  # TPU_MOE_SKIP_FP8_ROW_COUNT (or the skip flag) is off.
++        moe_methods: list[tuple[torch.nn.Module, FusedMoEMethodBase]] = []
++        for m in self.model.modules():
++            qm = getattr(m, "quant_method", None)
++            if isinstance(qm, FusedMoEMethodBase):
++                moe_methods.append((m, qm))
++        fp8_methods = [
++            (m, qm) for m, qm in moe_methods if isinstance(qm, VllmFp8MoEMethodTPU)
++        ]
++        if policy.enabled:
++            method_types = {type(qm) for _, qm in moe_methods}
++            if not method_types:
++                reason = "model has no MoE layers"
++            elif method_types != {VllmFp8MoEMethodTPU}:
++                names = sorted(t.__name__ for t in method_types)
++                reason = f"MoE methods {names}; only VllmFp8MoEMethodTPU is supported"
++            elif violations := [
++                v
++                for m, qm in fp8_methods
++                if (v := qm.fp8_row_count_contract_violation(m)) is not None
++            ]:
++                reason = f"load contract: {violations[0]}"
++            else:
++                logger.warning_once(
++                    "TPU_MOE_SKIP_FP8_ROW_COUNT (experiment): %d FP8 MoE layers use "
++                    "the row-count padded-row filter (PaddedRowFilter.ROW_COUNT) "
++                    "on the ordinary routed-GMM path.",
++                    len(fp8_methods),
++                )
++                return
++            for m, qm in fp8_methods:
++                qm.disable_fp8_row_count(m)
++            policy = moe_skip_policy.Fp8RowCountPolicy(
++                enabled=False, fallback_reason=reason
++            )
++            self._fp8_row_count_policy = policy
++        if fp8_methods:
++            logger.warning_once(
++                "TPU_MOE_SKIP_FP8_ROW_COUNT is not applied to the FP8 MoE (%s); "
++                "keeping the existing FP8 MoE path.",
++                policy.fallback_reason,
++            )
++
+     def _load_async_drafter(self) -> None:
+         """Load the draft model under the target's BF16 MoE skipping policy.
+ 
+diff --git a/tests/layers/adapter/quantization/test_fp8_row_count.py b/tests/layers/adapter/quantization/test_fp8_row_count.py
+new file mode 100644
+index 000000000..37b28ce2f
+--- /dev/null
++++ b/tests/layers/adapter/quantization/test_fp8_row_count.py
+@@ -0,0 +1,561 @@
++# Copyright 2026 Google LLC
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++"""Experiment (t29): the FP8 MoE row-count filter dispatch (CPU).
++
++- RC (TPU_MOE_SKIP_PADDED_TOKENS=1, TPU_MOE_SKIP_FP8_ROW_COUNT=1, policy on):
++  no routing-weight zeroing; the ordinary fused_moe_gmm call gets
++  skip_padded_tokens=True, PaddedRowFilter.ROW_COUNT and row_info.
++- ZW (skip flag only) and S0 (no flag): the existing call, unchanged.
++- Other FP8 paths and unsupported configurations: the policy falls back, and
++  the forward refuses if a row-count layer reaches another path anyway.
++"""
++
++from types import SimpleNamespace
++
++import pytest
++import torch
++
++from vllm_torchtpu.layers.adapter import fused_moe_decode as fused_moe_decode_module
++from vllm_torchtpu.layers.adapter import fused_moe_ep as fused_moe_ep_module
++from vllm_torchtpu.layers.adapter import moe_skip_policy as msp
++from vllm_torchtpu.layers.adapter import moe_tp_decode as moe_tp_decode_module
++from vllm_torchtpu.layers.adapter import token_padding
++from vllm_torchtpu.layers.adapter.quantization import fp8 as module
++from vllm_torchtpu.layers.adapter.quantization.fp8 import VllmFp8MoEMethodTPU
++from vllm_torchtpu.layers.core.fused_moe_gmm import PaddedRowFilter
++
++_TOPK = 2
++_SKIP = "TPU_MOE_SKIP_PADDED_TOKENS"
++_RC = "TPU_MOE_SKIP_FP8_ROW_COUNT"
++
++
++# ---------------------------------------------------------------- policy
++
++
++def _parallel_config(**overrides):
++    cfg = {
++        "data_parallel_size": 1,
++        "pipeline_parallel_size": 1,
++        "prefill_context_parallel_size": 1,
++        "decode_context_parallel_size": 1,
++        "enable_expert_parallel": False,
++    }
++    cfg.update(overrides)
++    return SimpleNamespace(**cfg)
++
++
++def _resolve(**overrides):
++    kwargs = {
++        "skip_flag": True,
++        "row_count_flag": True,
++        "parallel_config": _parallel_config(),
++        "is_fp8_model": True,
++        "checkpoint_fp8_serialized": True,
++        "requant_weight_dtype": "float8_e4m3fn",
++        "requant_block_size": None,
++        "pipelined_collective": False,
++        "fp8_all_gather": False,
++        "fused_ep_kernel": False,
++        "fused_decode_kernel": False,
++        "dense_expert_kernel": False,
++        "sequence_parallel": False,
++        "has_speculative": False,
++        "has_lora": False,
++    }
++    kwargs.update(overrides)
++    return msp.resolve_fp8_row_count_policy(**kwargs)
++
++
++def test_policy_tp_only_fp8_enables_row_count():
++    policy = _resolve()
++    assert policy.enabled is True and policy.fallback_reason is None
++
++
++@pytest.mark.parametrize(
++    "skip_flag, row_count_flag", [(False, False), (True, False), (False, True)]
++)
++def test_policy_needs_both_flags_and_is_silent_otherwise(skip_flag, row_count_flag):
++    policy = _resolve(skip_flag=skip_flag, row_count_flag=row_count_flag)
++    assert policy.enabled is False and policy.fallback_reason is None
++
++
++@pytest.mark.parametrize(
++    "overrides, fragment",
++    [
++        ({"is_fp8_model": False}, "not an FP8 model"),
++        ({"checkpoint_fp8_serialized": False}, "quantize-on-load"),
++        ({"requant_weight_dtype": "int8"}, "MOE_REQUANTIZE_WEIGHT_DTYPE=int8"),
++        (
++            {"requant_weight_dtype": "float8_e5m2"},
++            "MOE_REQUANTIZE_WEIGHT_DTYPE=float8_e5m2",
++        ),
++        ({"requant_block_size": 128}, "MOE_REQUANTIZE_BLOCK_SIZE=128"),
++        ({"parallel_config": _parallel_config(enable_expert_parallel=True)}, "expert"),
++        ({"parallel_config": _parallel_config(data_parallel_size=2)}, "data_parallel"),
++        ({"parallel_config": _parallel_config(pipeline_parallel_size=2)}, "pipeline"),
++        (
++            {"parallel_config": _parallel_config(prefill_context_parallel_size=2)},
++            "prefill",
++        ),
++        (
++            {"parallel_config": _parallel_config(decode_context_parallel_size=2)},
++            "decode_context",
++        ),
++        ({"pipelined_collective": True}, "pipelined"),
++        ({"fp8_all_gather": True}, "all-gather"),
++        ({"fused_ep_kernel": True}, "fused EP"),
++        ({"fused_decode_kernel": True}, "fused MoE decode"),
++        ({"dense_expert_kernel": True}, "dense-expert"),
++        ({"sequence_parallel": True}, "sequence parallelism"),
++        ({"has_speculative": True}, "speculative"),
++        ({"has_lora": True}, "LoRA"),
++    ],
++)
++def test_policy_other_paths_and_topologies_fall_back(overrides, fragment):
++    policy = _resolve(**overrides)
++    assert policy.enabled is False
++    assert policy.fallback_reason is not None and fragment in policy.fallback_reason
++
++
++def test_fp8_row_count_scope_nests_and_restores():
++    assert msp.get_active_fp8_row_count_policy() is None
++    outer = msp.Fp8RowCountPolicy(enabled=True)
++    inner = msp.Fp8RowCountPolicy(enabled=False, fallback_reason="test")
++    with msp.fp8_row_count_scope(outer):
++        assert msp.get_active_fp8_row_count_policy() is outer
++        with msp.fp8_row_count_scope(inner):
++            assert msp.get_active_fp8_row_count_policy() is inner
++        assert msp.get_active_fp8_row_count_policy() is outer
++    assert msp.get_active_fp8_row_count_policy() is None
++
++
++# ---------------------------------------------------------------- method
++
++
++def _moe_cfg(use_ep: bool = False):
++    return SimpleNamespace(
++        experts_per_token=_TOPK,
++        has_bias=False,
++        moe_parallel_config=SimpleNamespace(use_ep=use_ep),
++    )
++
++
++def _method(*, row_count: bool) -> VllmFp8MoEMethodTPU:
++    method = VllmFp8MoEMethodTPU.__new__(VllmFp8MoEMethodTPU)
++    method._tpu_activation_str = "silu"
++    method._use_adaptive_fused_moe = False
++    method._fp8_row_count = row_count
++    return method
++
++
++def _layer():
++    return SimpleNamespace(
++        w13_weight=torch.zeros(4, 128, 256, dtype=torch.float8_e4m3fn),
++        w2_weight=torch.zeros(4, 128, 128, dtype=torch.float8_e4m3fn),
++        w13_weight_scale_inv=torch.ones(4, 1, 1, 256),
++        w2_weight_scale_inv=torch.ones(4, 1, 1, 128),
++        _experts_start=None,
++        moe_config=_moe_cfg(),
++    )
++
++
++@pytest.fixture
++def forward(monkeypatch):
++    """apply_monolithic with routing, the kernels and the other paths stubbed."""
++    weights = torch.tensor([[0.6, 0.4], [0.0, 1.0], [0.7, 0.3], [0.8, 0.2]])
++    ids = torch.tensor([[0, 1], [1, 2], [2, 3], [3, 0]], dtype=torch.int32)
++    rec = SimpleNamespace(zero=[], fused=[], pipelined=[], decode=[])
++    flags = SimpleNamespace(pipelined=False, decode=False)
++
++    monkeypatch.setattr(
++        module.moe_routing, "route", lambda layer, x, logits: (weights, ids)
++    )
++
++    def _zero(topk_ids, topk_weights, is_local_tensor=False):
++        rec.zero.append(is_local_tensor)
++        return topk_ids, torch.zeros_like(topk_weights)
++
++    monkeypatch.setattr(token_padding, "zero_routing_weights_for_padding", _zero)
++    monkeypatch.setattr(
++        module, "enable_pipelined_collective_and_compute", lambda: flags.pipelined
++    )
++    monkeypatch.setattr(fused_moe_ep_module, "fused_moe_ep_supported", lambda m: False)
++    monkeypatch.setattr(
++        moe_tp_decode_module, "moe_tp_decode_supported", lambda m: False
++    )
++    monkeypatch.setattr(
++        fused_moe_decode_module, "fused_moe_decode_supported", lambda m: flags.decode
++    )
++    monkeypatch.setattr(
++        fused_moe_decode_module,
++        "fused_moe_decode",
++        lambda m, layer, x, w, i: (rec.decode.append(w), x)[1],
++    )
++    monkeypatch.setattr(
++        module,
++        "fused_moe_gmm",
++        lambda **kw: (rec.fused.append(kw), kw["hidden_states"])[1],
++    )
++    monkeypatch.setattr(
++        module,
++        "pipelined_fused_moe_gmm",
++        lambda **kw: (rec.pipelined.append(kw), kw["hidden_states"])[1],
++    )
++    monkeypatch.delenv(_SKIP, raising=False)
++    monkeypatch.delenv(_RC, raising=False)
++    monkeypatch.delenv("TPU_MOE_FP8_ALL_GATHER", raising=False)
++
++    def run(method):
++        x = torch.ones(4, 128, dtype=torch.bfloat16)
++        return method.apply_monolithic(
++            _layer(), x, torch.zeros(4, 4, dtype=torch.bfloat16)
++        )
++
++    return SimpleNamespace(run=run, rec=rec, flags=flags, weights=weights)
++
++
++@pytest.fixture
++def padding_state():
++    state = token_padding.TokenPaddingState.create(16, "cpu", track_valid_tokens=True)
++    state.update(2, 4)
++    token_padding.set_padding_state(state)
++    yield state
++    token_padding.set_padding_state(None)
++
++
++_ROW_KEYS = ("skip_padded_tokens", "padded_row_filter", "row_info")
++
++
++def test_rc_passes_row_count_and_keeps_routing_weights(
++    forward, padding_state, monkeypatch
++):
++    monkeypatch.setenv(_SKIP, "1")
++    monkeypatch.setenv(_RC, "1")
++    forward.run(_method(row_count=True))
++    assert forward.rec.zero == []
++    (call,) = forward.rec.fused
++    assert call["skip_padded_tokens"] is True
++    assert call["padded_row_filter"] is PaddedRowFilter.ROW_COUNT
++    assert call["row_info"] is padding_state.local_valid_tokens
++    assert int(call["row_info"].item()) == 2
++    assert torch.equal(call["topk_weights"], forward.weights)
++
++
++def test_zw_keeps_the_existing_call(forward, padding_state, monkeypatch):
++    """Skip flag without the policy (ZW, also with the experiment flag set
++    but the policy off): weights zeroed, the call as before."""
++    monkeypatch.setenv(_SKIP, "1")
++    forward.run(_method(row_count=False))
++    monkeypatch.setenv(_RC, "1")
++    forward.run(_method(row_count=False))
++    assert forward.rec.zero == [False, False]
++    assert len(forward.rec.fused) == 2
++    for call in forward.rec.fused:
++        assert not any(k in call for k in _ROW_KEYS)
++        assert torch.count_nonzero(call["topk_weights"]) == 0  # the stub zeroes all
++
++
++def test_s0_keeps_the_existing_call(forward, padding_state):
++    forward.run(_method(row_count=False))
++    assert forward.rec.zero == []
++    (call,) = forward.rec.fused
++    assert not any(k in call for k in _ROW_KEYS)
++    assert torch.equal(call["topk_weights"], forward.weights)
++
++
++def test_zw_pipelined_and_fused_decode_paths_unchanged(
++    forward, padding_state, monkeypatch
++):
++    monkeypatch.setenv(_SKIP, "1")
++    forward.flags.pipelined = True
++    forward.run(_method(row_count=False))
++    forward.flags.pipelined = False
++    forward.flags.decode = True
++    forward.run(_method(row_count=False))
++    assert forward.rec.zero == [True, False]
++    assert len(forward.rec.pipelined) == 1 and len(forward.rec.decode) == 1
++    assert forward.rec.fused == []
++    assert not any(k in forward.rec.pipelined[0] for k in _ROW_KEYS)
++
++
++@pytest.mark.parametrize("path", ["pipelined", "decode"])
++def test_rc_refuses_other_paths(forward, padding_state, monkeypatch, path):
++    monkeypatch.setenv(_SKIP, "1")
++    monkeypatch.setenv(_RC, "1")
++    setattr(forward.flags, path, True)
++    with pytest.raises(RuntimeError, match="row-count"):
++        forward.run(_method(row_count=True))
++    assert forward.rec.zero == [] and forward.rec.fused == []
++
++
++def test_rc_raises_without_valid_token_count(forward, monkeypatch):
++    monkeypatch.setenv(_SKIP, "1")
++    monkeypatch.setenv(_RC, "1")
++    token_padding.set_padding_state(token_padding.TokenPaddingState.create(16, "cpu"))
++    try:
++        with pytest.raises(RuntimeError, match="track_valid_tokens=False"):
++            forward.run(_method(row_count=True))
++    finally:
++        token_padding.set_padding_state(None)
++
++
++def _new_method(monkeypatch):
++    monkeypatch.setattr(module.FusedMoEMethodBase, "__init__", lambda self, moe: None)
++    return VllmFp8MoEMethodTPU(
++        SimpleNamespace(weight_block_size=[128, 128]), _moe_cfg()
++    )
++
++
++def test_init_consumes_the_runner_scope(monkeypatch):
++    with msp.fp8_row_count_scope(msp.Fp8RowCountPolicy(enabled=True)):
++        assert _new_method(monkeypatch)._fp8_row_count is True
++    with msp.fp8_row_count_scope(
++        msp.Fp8RowCountPolicy(enabled=False, fallback_reason="x")
++    ):
++        assert _new_method(monkeypatch)._fp8_row_count is False
++
++
++def test_init_outside_the_runner_scope_keeps_zero_weight(monkeypatch):
++    monkeypatch.setenv(_SKIP, "1")
++    monkeypatch.setenv(_RC, "1")
++    assert msp.get_active_fp8_row_count_policy() is None
++    method = _new_method(monkeypatch)
++    assert method._fp8_row_count is False
++    assert method._padded_row_filter is PaddedRowFilter.ZERO_WEIGHT
++
++
++@pytest.mark.parametrize(
++    "row_count, expected",
++    [
++        (False, {}),
++        (
++            True,
++            {
++                "skip_padded_tokens": True,
++                "padded_row_filter": PaddedRowFilter.ROW_COUNT,
++            },
++        ),
++    ],
++)
++def test_process_weights_prebuilds_the_kernel_of_the_policy(
++    monkeypatch, row_count, expected
++):
++    prebuilt: list[dict] = []
++
++    class _Experts(SimpleNamespace):
++        pass
++
++    monkeypatch.setattr(module, "RoutedExperts", _Experts)
++    monkeypatch.setattr(
++        module, "prebuild_fused_moe_kernel", lambda **kw: prebuilt.append(kw)
++    )
++    monkeypatch.setattr(
++        module.moe_routing, "register_experts_start_buffer", lambda *a, **k: None
++    )
++    monkeypatch.setattr(
++        fused_moe_ep_module, "prebuild_fused_moe_ep", lambda *a, **k: None
++    )
++    w13, w2 = (
++        torch.zeros(2, 256, 128, dtype=torch.float8_e4m3fn),
++        torch.zeros(2, 128, 128, dtype=torch.float8_e4m3fn),
++    )
++    s13, s2 = torch.ones(2, 1, 1, 256), torch.ones(2, 1, 1, 128)
++    monkeypatch.setattr(
++        module,
++        "_process_fp8_moe_weights",
++        lambda layer, **kw: (w13, s13, w2, s2, "fp8", None),
++    )
++    monkeypatch.delenv("MOE_FUSED_EP_KERNEL_IMPL", raising=False)
++
++    method = _method(row_count=row_count)
++    method.moe = SimpleNamespace(has_bias=False)
++    method.quant_config = SimpleNamespace(is_checkpoint_fp8_serialized=True)
++    method.weight_block_size = [128, 128]
++    method.weight_scale_name = "weight_scale_inv"
++    method._set_tpu_activation = lambda layer: "silu"
++    layer = _Experts(
++        moe_config=_moe_cfg(),
++        renormalize=True,
++        w13_weight=torch.zeros(2, 128, 128, dtype=torch.float8_e4m3fn),
++    )
++    method.process_weights_after_loading(layer)
++    (call,) = prebuilt
++    assert {
++        k: v for k, v in call.items() if k not in ("topk", "activation", "use_ep")
++    } == expected
++    assert (call["topk"], call["activation"], call["use_ep"]) == (_TOPK, "silu", False)
++
++
++def test_disable_prebuilds_the_existing_kernel(monkeypatch):
++    prebuilt: list[dict] = []
++    monkeypatch.setattr(
++        module, "prebuild_fused_moe_kernel", lambda **kw: prebuilt.append(kw)
++    )
++    method = _method(row_count=True)
++    method.disable_fp8_row_count(_layer())
++    assert method._fp8_row_count is False
++    assert method._padded_row_filter is PaddedRowFilter.ZERO_WEIGHT
++    assert prebuilt == [{"topk": _TOPK, "activation": "silu", "use_ep": False}]
++
++
++# ---------------------------------------------------------------- TPU
++
++
++@pytest.mark.tpu_test
++@pytest.mark.parametrize(
++    "num_tokens,num_valid", [(16, 0), (16, 1), (16, 9), (16, 16), (32, 17), (256, 255)]
++)
++def test_fp8_row_count_matches_stock_on_real_rows(num_tokens, num_valid):
++    """FP8 expert weights in the kernel layout of VllmFp8MoEMethodTPU
++    (float8_e4m3fn, per-channel float32 scales [E, 1, 1, N]): the row-count
++    filter leaves real rows bit-identical to stock (a real zero gate
++    included) and drops the padded rows, whose gates are non-zero."""
++    import jax
++    import numpy as np
++    from jax import numpy as jnp
++
++    from vllm_torchtpu.layers.core.fused_moe_gmm import fused_moe_func
++
++    if jax.default_backend() != "tpu":
++        pytest.skip("needs a TPU")
++    num_experts, hidden, inter, topk = 16, 2048, 256, 8
++    k = jax.random.split(jax.random.key(0), 7)
++    real = jax.random.normal(k[0], (num_tokens, hidden)) / 10
++    perturbed = jax.random.normal(k[1], (num_tokens, hidden)) * 5
++    is_padding = jnp.arange(num_tokens)[:, None] >= num_valid
++    x = jnp.where(is_padding, perturbed, real).astype(jnp.bfloat16)
++    w1 = (jax.random.normal(k[2], (num_experts, hidden, 2 * inter)) * 64).astype(
++        jnp.float8_e4m3fn
++    )
++    w2 = (jax.random.normal(k[3], (num_experts, inter, hidden)) * 64).astype(
++        jnp.float8_e4m3fn
++    )
++    s1 = jax.random.uniform(
++        k[4], (num_experts, 1, 1, 2 * inter), minval=2e-4, maxval=4e-4
++    )
++    s2 = jax.random.uniform(k[5], (num_experts, 1, 1, hidden), minval=2e-4, maxval=4e-4)
++    rows = jnp.arange(num_tokens, dtype=jnp.int32)[:, None]
++    ids = (rows + 2 * jnp.arange(topk, dtype=jnp.int32)[None, :]) % num_experts
++    weights = jax.random.uniform(k[6], (num_tokens, topk), minval=0.05, maxval=0.3)
++    if num_valid > 0:
++        weights = weights.at[0, 0].set(0.0)
++    stock = fused_moe_func(
++        x, w1, w2, s1, s2, None, None, weights, ids, topk=topk, activation="silu"
++    )
++    row_count = fused_moe_func(
++        x,
++        w1,
++        w2,
++        s1,
++        s2,
++        None,
++        None,
++        weights,
++        ids,
++        None,
++        jnp.array([num_valid], dtype=jnp.int32),
++        topk=topk,
++        activation="silu",
++        skip_padded_tokens=True,
++        padded_row_filter=PaddedRowFilter.ROW_COUNT,
++    )
++    stock, row_count = np.asarray(stock), np.asarray(row_count)
++    np.testing.assert_array_equal(row_count[:num_valid], stock[:num_valid])
++    np.testing.assert_array_equal(
++        row_count[num_valid:], np.zeros_like(row_count[num_valid:])
++    )
++    if num_valid < num_tokens:
++        assert np.abs(stock[num_valid:].astype(np.float32)).max() > 0
++
++
++# ---------------------------------------------------------------- load contract
++
++
++def _loaded(w_dtype=torch.float8_e4m3fn, s_shape13=None, s_dtype=torch.float32):
++    """A layer as process_weights_after_loading leaves it: w13 [E, H, 2I], w2
++    [E, I, H] and per-channel scales [E, 1, 1, N]."""
++    e, h, i = 2, 128, 64
++    return SimpleNamespace(
++        w13_weight=torch.zeros(e, h, 2 * i).to(w_dtype),
++        w2_weight=torch.zeros(e, i, h).to(w_dtype),
++        w13_weight_scale_inv=torch.ones(s_shape13 or (e, 1, 1, 2 * i), dtype=s_dtype),
++        w2_weight_scale_inv=torch.ones(e, 1, 1, h, dtype=s_dtype),
++    )
++
++
++@pytest.mark.parametrize(
++    "ckpt, layer, fragment",
++    [
++        (torch.float8_e4m3fn, _loaded(), None),
++        (None, _loaded(), "checkpoint expert weights None"),
++        (torch.bfloat16, _loaded(), "checkpoint expert weights torch.bfloat16"),
++        (
++            torch.float8_e4m3fn,
++            _loaded(w_dtype=torch.int8),
++            "w13 runtime weight torch.int8",
++        ),
++        (torch.float8_e4m3fn, _loaded(s_shape13=(2, 2, 1, 128)), "not per-channel"),
++        (torch.float8_e4m3fn, _loaded(s_dtype=torch.bfloat16), "not per-channel"),
++    ],
++)
++def test_load_contract_admits_only_native_e4m3_per_channel(ckpt, layer, fragment):
++    method = _method(row_count=True)
++    method._checkpoint_weight_dtype = ckpt
++    reason = method.fp8_row_count_contract_violation(layer)
++    if fragment is None:
++        assert reason is None
++    else:
++        assert reason is not None and fragment in reason
++
++
++def test_process_weights_records_the_checkpoint_weight_dtype(monkeypatch):
++    class _Experts(SimpleNamespace):
++        pass
++
++    monkeypatch.setattr(module, "RoutedExperts", _Experts)
++    monkeypatch.setattr(module, "prebuild_fused_moe_kernel", lambda **kw: None)
++    monkeypatch.setattr(
++        module.moe_routing, "register_experts_start_buffer", lambda *a, **k: None
++    )
++    monkeypatch.setattr(
++        fused_moe_ep_module, "prebuild_fused_moe_ep", lambda *a, **k: None
++    )
++    loaded = _loaded()
++    monkeypatch.setattr(
++        module,
++        "_process_fp8_moe_weights",
++        lambda layer, **kw: (
++            loaded.w13_weight,
++            loaded.w13_weight_scale_inv,
++            loaded.w2_weight,
++            loaded.w2_weight_scale_inv,
++            "float8_e4m3fn",
++            None,
++        ),
++    )
++    monkeypatch.delenv("MOE_FUSED_EP_KERNEL_IMPL", raising=False)
++    method = _method(row_count=True)
++    method.moe = SimpleNamespace(has_bias=False)
++    method.quant_config = SimpleNamespace(is_checkpoint_fp8_serialized=True)
++    method.weight_block_size = [128, 128]
++    method.weight_scale_name = "weight_scale_inv"
++    method._set_tpu_activation = lambda layer: "silu"
++    layer = _Experts(
++        moe_config=_moe_cfg(),
++        renormalize=True,
++        w13_weight=torch.zeros(2, 128, 128, dtype=torch.float8_e4m3fn),
++    )
++    method.process_weights_after_loading(layer)
++    assert method._checkpoint_weight_dtype == torch.float8_e4m3fn
++    assert method.fp8_row_count_contract_violation(layer) is None
+diff --git a/tests/runner/test_fp8_row_count_runner.py b/tests/runner/test_fp8_row_count_runner.py
+new file mode 100644
+index 000000000..ead881cfb
+--- /dev/null
++++ b/tests/runner/test_fp8_row_count_runner.py
+@@ -0,0 +1,187 @@
++# Copyright 2026 Google LLC
++#
++# Licensed under the Apache License, Version 2.0 (the "License");
++# you may not use this file except in compliance with the License.
++# You may obtain a copy of the License at
++#
++#     http://www.apache.org/licenses/LICENSE-2.0
++#
++# Unless required by applicable law or agreed to in writing, software
++# distributed under the License is distributed on an "AS IS" BASIS,
++# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
++# See the License for the specific language governing permissions and
++# limitations under the License.
++"""Experiment (t29): runner side of the FP8 MoE row-count filter (policy
++resolution from env + config, and the post-load finalize)."""
++
++from types import SimpleNamespace
++
++import torch
++from vllm.model_executor.layers.fused_moe import FusedMoEMethodBase
++
++from vllm_torchtpu.layers.adapter import moe_skip_policy as msp
++from vllm_torchtpu.layers.adapter.quantization.fp8 import (
++    VllmFp8Config,
++    VllmFp8MoEMethodTPU,
++)
++from vllm_torchtpu.runner.tpu_runner import TPUModelRunner
++
++_TOPK = 2
++_SKIP = "TPU_MOE_SKIP_PADDED_TOKENS"
++_RC = "TPU_MOE_SKIP_FP8_ROW_COUNT"
++
++
++def _parallel_config(**overrides):
++    cfg = {
++        "data_parallel_size": 1,
++        "pipeline_parallel_size": 1,
++        "prefill_context_parallel_size": 1,
++        "decode_context_parallel_size": 1,
++        "enable_expert_parallel": False,
++    }
++    cfg.update(overrides)
++    return SimpleNamespace(**cfg)
++
++
++def _method(*, row_count: bool) -> VllmFp8MoEMethodTPU:
++    method = VllmFp8MoEMethodTPU.__new__(VllmFp8MoEMethodTPU)
++    method._tpu_activation_str = "silu"
++    method._fp8_row_count = row_count
++    return method
++
++
++class _OtherMoEMethod(FusedMoEMethodBase):
++    def create_weights(self, *args, **kwargs):
++        raise AssertionError("not called")
++
++    def get_fused_moe_quant_config(self, layer):
++        raise AssertionError("not called")
++
++
++def _runner(monkeypatch):
++    for name in (
++        "TPU_MOE_COLLECTION_CHUNK_SIZE",
++        "TPU_MOE_FP8_ALL_GATHER",
++        "USE_MOE_FUSED_EP_KERNEL",
++        "MOE_FUSED_EP_KERNEL_IMPL",
++        "USE_MOE_TP_DECODE_KERNEL",
++        "FUSED_MOE_DECODE_KERNEL",
++        "TPU_MOE_DENSE_EXPERT_THRESHOLD",
++        "TPU_MOE_SEQUENCE_PARALLEL",
++        "MOE_REQUANTIZE_WEIGHT_DTYPE",
++        "MOE_REQUANTIZE_BLOCK_SIZE",
++    ):
++        monkeypatch.delenv(name, raising=False)
++    monkeypatch.setenv(_SKIP, "1")
++    monkeypatch.setenv(_RC, "1")
++    runner = object.__new__(TPUModelRunner)
++    runner.vllm_config = SimpleNamespace(
++        quant_config=VllmFp8Config.__new__(VllmFp8Config)
++    )
++    runner.vllm_config.quant_config.is_checkpoint_fp8_serialized = True
++    runner.parallel_config = _parallel_config()
++    runner.speculative_config = None
++    runner.drafter = None
++    runner.lora_config = None
++    return runner
++
++
++def test_runner_resolves_the_policy_from_env_and_config(monkeypatch):
++    runner = _runner(monkeypatch)
++    assert runner._resolve_fp8_row_count_policy().enabled is True
++    monkeypatch.setenv("USE_MOE_TP_DECODE_KERNEL", "1")
++    assert "fused MoE decode" in runner._resolve_fp8_row_count_policy().fallback_reason
++    monkeypatch.delenv("USE_MOE_TP_DECODE_KERNEL")
++    monkeypatch.setenv("MOE_FUSED_EP_KERNEL_IMPL", "adaptive")
++    assert "adaptive" in runner._resolve_fp8_row_count_policy().fallback_reason
++    monkeypatch.delenv("MOE_FUSED_EP_KERNEL_IMPL")
++    monkeypatch.setenv("TPU_MOE_DENSE_EXPERT_THRESHOLD", "64")
++    assert "dense-expert" in runner._resolve_fp8_row_count_policy().fallback_reason
++    monkeypatch.delenv("TPU_MOE_DENSE_EXPERT_THRESHOLD")
++    runner.vllm_config.quant_config = object()
++    assert runner._resolve_fp8_row_count_policy().fallback_reason == "not an FP8 model"
++
++
++def test_runner_finalize_keeps_pure_fp8_and_disarms_mixed(monkeypatch):
++    runner = _runner(monkeypatch)
++    on = runner._resolve_fp8_row_count_policy()
++    fp8 = _method(row_count=True)
++    fp8._checkpoint_weight_dtype = torch.float8_e4m3fn
++    fp8_mod = SimpleNamespace(
++        quant_method=fp8,
++        w13_weight=torch.zeros(2, 128, 128, dtype=torch.float8_e4m3fn),
++        w2_weight=torch.zeros(2, 64, 128, dtype=torch.float8_e4m3fn),
++        w13_weight_scale_inv=torch.ones(2, 1, 1, 128),
++        w2_weight_scale_inv=torch.ones(2, 1, 1, 128),
++    )
++    runner._fp8_row_count_policy = on
++    runner.model = SimpleNamespace(modules=lambda: [fp8_mod])
++    runner._finalize_fp8_row_count_policy_for_model()
++    assert runner._fp8_row_count_policy is on and fp8._fp8_row_count is True
++
++    disarmed: list[object] = []
++    monkeypatch.setattr(
++        VllmFp8MoEMethodTPU,
++        "disable_fp8_row_count",
++        lambda self, layer=None: disarmed.append(layer),
++    )
++    other_mod = SimpleNamespace(quant_method=object.__new__(_OtherMoEMethod))
++    runner._fp8_row_count_policy = on
++    runner.model = SimpleNamespace(modules=lambda: [fp8_mod, other_mod])
++    runner._finalize_fp8_row_count_policy_for_model()
++    assert runner._fp8_row_count_policy.enabled is False
++    assert runner._fp8_row_count_policy.fallback_reason.startswith("MoE methods")
++    assert disarmed == [fp8_mod]
++
++    runner._fp8_row_count_policy = on
++    runner.model = SimpleNamespace(modules=lambda: [SimpleNamespace()])
++    runner._finalize_fp8_row_count_policy_for_model()
++    assert runner._fp8_row_count_policy.fallback_reason == "model has no MoE layers"
++
++
++def test_runner_rejects_off_contract_loads_and_allocates_no_fp8_count(monkeypatch):
++    """Quantize-on-load, int8 / e5m2 requantization, a non-default runtime block
++    size and a loaded layer outside the contract keep the existing path and
++    allocate no valid-token count for FP8; the BF16 policy's need is unaffected."""
++    runner = _runner(monkeypatch)
++    runner._bf16_moe_skip_policy = msp.Bf16MoeSkipPolicy(enabled=False)
++    quant_config = runner.vllm_config.quant_config
++    quant_config.is_checkpoint_fp8_serialized = False
++    assert "quantize-on-load" in runner._resolve_fp8_row_count_policy().fallback_reason
++    quant_config.is_checkpoint_fp8_serialized = True
++    for name, value, fragment in (
++        ("MOE_REQUANTIZE_WEIGHT_DTYPE", "int8", "int8"),
++        ("MOE_REQUANTIZE_WEIGHT_DTYPE", "float8_e5m2", "float8_e5m2"),
++        ("MOE_REQUANTIZE_BLOCK_SIZE", "128", "MOE_REQUANTIZE_BLOCK_SIZE=128"),
++    ):
++        monkeypatch.setenv(name, value)
++        policy = runner._resolve_fp8_row_count_policy()
++        assert policy.enabled is False and fragment in policy.fallback_reason
++        monkeypatch.delenv(name)
++    on = runner._resolve_fp8_row_count_policy()
++    assert on.enabled is True
++    runner._fp8_row_count_policy = on
++    assert runner._padding_state_tracks_valid_tokens() is True
++
++    fp8 = _method(row_count=True)
++    fp8._checkpoint_weight_dtype = torch.float8_e4m3fn
++    bad = SimpleNamespace(
++        w13_weight=torch.zeros(2, 128, 128, dtype=torch.float8_e4m3fn),
++        w2_weight=torch.zeros(2, 64, 128, dtype=torch.float8_e4m3fn),
++        w13_weight_scale_inv=torch.ones(2, 1, 1, 128),
++        w2_weight_scale_inv=torch.ones(2, 2, 1, 128),  # block scales
++        quant_method=fp8,
++    )
++    monkeypatch.setattr(
++        VllmFp8MoEMethodTPU, "disable_fp8_row_count", lambda self, layer=None: None
++    )
++    runner.model = SimpleNamespace(modules=lambda: [bad])
++    runner._finalize_fp8_row_count_policy_for_model()
++    assert runner._fp8_row_count_policy.enabled is False
++    assert (
++        "load contract: w2 runtime scale"
++        in runner._fp8_row_count_policy.fallback_reason
++    )
++    assert runner._padding_state_tracks_valid_tokens() is False
++    runner._bf16_moe_skip_policy = msp.Bf16MoeSkipPolicy(enabled=True)
++    assert runner._padding_state_tracks_valid_tokens() is True

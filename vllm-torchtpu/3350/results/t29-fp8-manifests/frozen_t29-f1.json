@@ -1,0 +1,99 @@
+{
+ "plan_revision": "rev3",
+ "plan_sha256": "8b44f5a1f400bc8fb80d551d4a8c21037b5665ab466acee3244d2528ba7dca00",
+ "run_yaml_template_sha256": "6eb906d2677a1e83b3d0badb1b083fce0dea4119063c21b8b5b75823856513ca",
+ "template_head": {
+  "schema_version": 1,
+  "kind": "resolved_manifest"
+ },
+ "sources": {
+  "parent_sha": "6cc233d90bb30c5d08b9de7979d639bae23eb1d9",
+  "upstream_head_sha": "975685ab2ab47c7e898d60080b750c6371a7fe83",
+  "initial_prototype_short_sha": "124b3f7e9",
+  "candidate_full_sha": "b85df49abad04e6fe37a17a6e783555035bcc07d",
+  "harness_full_sha": null,
+  "harness_sha256": "b3f6c6e7b10dcffe5491cddd9fcf1b282a6d10f9c51528a2a990a048ad33b57a",
+  "harness_hash_manifest": "harness_local_hashes.txt (= image /opt/measure, build log)",
+  "runtime_source_hash_manifest": {
+   "fp8rc": "07a055c5e4ca4ec7ddf8a38745158350d4a8cbc01e430f17cd9ce25ef6523663",
+   "upbase": "9ce21a22c7d0381fa0d9b44133518a34a35fe3ca814ade7959f913f296918508",
+   "up6": "097fa4db7ac652c0798aefb3735e0807f51ab90784f7a2026f14a18e0ac4c660"
+  },
+  "image_digest": "vllm-torchtpu-mskip@sha256:7a7f1597495ccb17e9673cdea4d7b2cb151d87cf5fc212dc58296005c676f553",
+  "image_build": "private Cloud Build (t29r4)"
+ },
+ "identity": {
+  "model": "Qwen3.5-35B-A3B-FP8",
+  "image": "vllm-torchtpu-mskip@sha256:7a7f1597495ccb17e9673cdea4d7b2cb151d87cf5fc212dc58296005c676f553",
+  "kv_blocks": null,
+  "src_tree_sha256": {
+   "fp8rc": "07a055c5e4ca4ec7ddf8a38745158350d4a8cbc01e430f17cd9ce25ef6523663",
+   "upbase": "9ce21a22c7d0381fa0d9b44133518a34a35fe3ca814ade7959f913f296918508"
+  }
+ },
+ "inputs": {
+  "model": "Qwen/Qwen3.5-35B-A3B-FP8",
+  "reported_hf_short_revision": "9d1823d2",
+  "resolved_hf_revision": "9d1823d2dee688a6b25e77009dc727688c44936e",
+  "gcs_prefix": "private-bucket/inputs/q35-35b-fp8-v1/",
+  "text_only_transform_manifest_sha256": "f995f69140fe938afbb47a7f3cf135b0ac1ee36133f0883451cf98fb0c574f7b",
+  "checkpoint_sha256_manifest_sha256": "9e3f039630855adc3a8d381b45b78ac648b5ae524efd7086aced00c45c8b65e6",
+  "chat_template_sha256": "a4aee8afcf2e0711942cf848899be66016f8d14a889ff9ede07bca099c28f715",
+  "prompts": "GSM8K test.parquet sha256 918897f1..., first 256 prompts, chat template with enable_thinking=False",
+  "thinking": false
+ },
+ "topology": {
+  "tp": 4,
+  "ep": false,
+  "dp": 1,
+  "pp": 1,
+  "pcp": 1,
+  "dcp": 1
+ },
+ "engine": {
+  "max_num_seqs": 256,
+  "max_model_len": 4352,
+  "max_num_batched_tokens": 4096,
+  "gpu_memory_utilization": 0.7,
+  "seed": 0,
+  "in_process_engine_core": true
+ },
+ "session_contract": {
+  "fresh_process": true,
+  "isolated_compile_cache": true,
+  "selectors_fixed_before_import_and_trace": true
+ },
+ "run_id": "t29-f1",
+ "groups": [
+  "f1a",
+  "f1b"
+ ],
+ "expected_arms": [
+  "fp8rc_off_t0",
+  "fp8rc_rc_t0",
+  "fp8rc_zw_t0",
+  "upbase_off_t0",
+  "upbase_on_t0",
+  "fp8d-fp8rc",
+  "unittest"
+ ],
+ "orders": {
+  "f1": {
+   "f1a": [
+    "fp8rc_off_t0",
+    "fp8rc_rc_t0",
+    "fp8rc_zw_t0"
+   ],
+   "f1b": [
+    "upbase_off_t0",
+    "upbase_on_t0",
+    "fp8d-fp8rc",
+    "unittest"
+   ]
+  }
+ },
+ "commands": [
+  "EXCLUDE_POOLS=tpu-np-24,tpu-np-28 bash mskip/build_t29/launch_t29.sh vllm-torchtpu-mskip@sha256:7a7f1597495ccb17e9673cdea4d7b2cb151d87cf5fc212dc58296005c676f553 f1a f1b",
+  "pod: bash /opt/measure/run_pod.sh -> run_arm.sh <tree> <flag> <label> <phases> <EXTRA of the group, see the JobSet YAML in manifests/>"
+ ]
+}
