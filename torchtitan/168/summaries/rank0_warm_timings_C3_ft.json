@@ -1,0 +1,78 @@
+{
+  "rank": 0,
+  "tag": "C3_ft",
+  "hw_audit": {
+    "hostname": "host-48",
+    "nodename": "trainer-0-3",
+    "rank": "0",
+    "local_rank": "0",
+    "tpu_worker_id": "3",
+    "tpu_topology": "2x2x4",
+    "slice_name": "tpu-group-0",
+    "slice_topology": "2x2x4",
+    "tpu_worker_hostnames": "host-00,host-01,host-02,host-03"
+  },
+  "ac_audit": {
+    "forward_only": false,
+    "ac_mode": "selective",
+    "config_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC.Config",
+    "policy_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC",
+    "recompute_bmm": false,
+    "save_pallas_attention": true,
+    "bmm_in_save_ops": true,
+    "splash_in_save_ops": true,
+    "collectives_excluded": true
+  },
+  "warm_iters": [
+    {
+      "iter": 1,
+      "train_batch_s": 6.581741,
+      "fwd_bwd_s": 5.098192,
+      "optimizer_step_s": 1.483549,
+      "grad_norm": 0.3331758379936218,
+      "dynamo_new_compiles": 0,
+      "max_memory_allocated_gb": 24.2634,
+      "max_memory_reserved_gb": 6.3516
+    },
+    {
+      "iter": 2,
+      "train_batch_s": 5.404736,
+      "fwd_bwd_s": 5.061896,
+      "optimizer_step_s": 0.34284,
+      "grad_norm": 0.3331753611564636,
+      "dynamo_new_compiles": 0,
+      "max_memory_allocated_gb": 24.2622,
+      "max_memory_reserved_gb": 6.3516
+    },
+    {
+      "iter": 3,
+      "train_batch_s": 5.373541,
+      "fwd_bwd_s": 5.034354,
+      "optimizer_step_s": 0.339186,
+      "grad_norm": 0.3331758379936218,
+      "dynamo_new_compiles": 0,
+      "max_memory_allocated_gb": 24.4273,
+      "max_memory_reserved_gb": 6.3516
+    },
+    {
+      "iter": 4,
+      "train_batch_s": 5.299587,
+      "fwd_bwd_s": 5.015466,
+      "optimizer_step_s": 0.284121,
+      "grad_norm": 0.3331758379936218,
+      "dynamo_new_compiles": 0,
+      "max_memory_allocated_gb": 24.3662,
+      "max_memory_reserved_gb": 6.3516
+    },
+    {
+      "iter": 5,
+      "train_batch_s": 5.340818,
+      "fwd_bwd_s": 5.052888,
+      "optimizer_step_s": 0.28793,
+      "grad_norm": 0.3331736624240875,
+      "dynamo_new_compiles": 0,
+      "max_memory_allocated_gb": 24.3662,
+      "max_memory_reserved_gb": 6.3516
+    }
+  ]
+}

@@ -1,0 +1,144 @@
+{
+  "pass_criteria": {
+    "pg_loss_abs_diff_max": 0.0001,
+    "grad_norm_rel_diff_max": 0.001,
+    "delta_w_cosine_min": 0.9999,
+    "same_layout_required": true
+  },
+  "baseline": "A_sel",
+  "input_batch_sha256": "e3d67e4fccb724b49b0a150daa22f1bcd695f0a5cca23e2b31719ac20be46fc1",
+  "baseline_layout_rows": [
+    14336,
+    14336,
+    14336,
+    14336,
+    8192,
+    8192
+  ],
+  "all_passed": false,
+  "arms": {
+    "C4_tt": {
+      "ac_audit": {
+        "forward_only": false,
+        "ac_mode": "selective",
+        "config_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC.Config",
+        "policy_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC",
+        "recompute_bmm": true,
+        "save_pallas_attention": true,
+        "bmm_in_save_ops": false,
+        "splash_in_save_ops": true,
+        "collectives_excluded": true
+      },
+      "input_batch_sha256_match": true,
+      "same_layout": true,
+      "layout_rows": [
+        14336,
+        14336,
+        14336,
+        14336,
+        8192,
+        8192
+      ],
+      "pg_loss_abs_diff": 3.724e-05,
+      "grad_norm_rel_diff": 0.00135516,
+      "delta_w": {
+        "cosine": 0.98893663,
+        "sign_agreement": 0.99200523,
+        "max_abs_diff": 4.994217306375504e-07,
+        "mean_abs_diff": 3.974662251533501e-09
+      },
+      "timing_and_memory": {
+        "engine_update_actor_s": 5.19734,
+        "fwd_bwd_s": 4.909935,
+        "optimizer_step_s": 0.287404,
+        "max_memory_allocated_gb": 20.056,
+        "max_memory_reserved_gb": 7.1293,
+        "aot_bwd_num_saved_tensors": 46,
+        "aot_bwd_saved_bytes_mb": 582.098
+      },
+      "passed": false
+    },
+    "C2_tf": {
+      "ac_audit": {
+        "forward_only": false,
+        "ac_mode": "selective",
+        "config_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC.Config",
+        "policy_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC",
+        "recompute_bmm": true,
+        "save_pallas_attention": false,
+        "bmm_in_save_ops": false,
+        "splash_in_save_ops": false,
+        "collectives_excluded": true
+      },
+      "input_batch_sha256_match": true,
+      "same_layout": true,
+      "layout_rows": [
+        14336,
+        14336,
+        14336,
+        14336,
+        8192,
+        8192
+      ],
+      "pg_loss_abs_diff": 3.724e-05,
+      "grad_norm_rel_diff": 0.00135516,
+      "delta_w": {
+        "cosine": 0.98893663,
+        "sign_agreement": 0.99200523,
+        "max_abs_diff": 4.994217306375504e-07,
+        "mean_abs_diff": 3.974662251533501e-09
+      },
+      "timing_and_memory": {
+        "engine_update_actor_s": 5.268498,
+        "fwd_bwd_s": 4.979612,
+        "optimizer_step_s": 0.288886,
+        "max_memory_allocated_gb": 19.7006,
+        "max_memory_reserved_gb": 7.1293,
+        "aot_bwd_num_saved_tensors": 44,
+        "aot_bwd_saved_bytes_mb": 525.66
+      },
+      "passed": false
+    },
+    "C3_ft": {
+      "ac_audit": {
+        "forward_only": false,
+        "ac_mode": "selective",
+        "config_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC.Config",
+        "policy_cls": "torchtitan.experiments.tpu.components.activation_checkpoint.TPUSelectiveAC",
+        "recompute_bmm": false,
+        "save_pallas_attention": true,
+        "bmm_in_save_ops": true,
+        "splash_in_save_ops": true,
+        "collectives_excluded": true
+      },
+      "input_batch_sha256_match": true,
+      "same_layout": true,
+      "layout_rows": [
+        14336,
+        14336,
+        14336,
+        14336,
+        8192,
+        8192
+      ],
+      "pg_loss_abs_diff": 0.0,
+      "grad_norm_rel_diff": 1.789e-05,
+      "delta_w": {
+        "cosine": 0.99996001,
+        "sign_agreement": 0.99982261,
+        "max_abs_diff": 3.203749656677246e-07,
+        "mean_abs_diff": 8.999939410078129e-11
+      },
+      "timing_and_memory": {
+        "engine_update_actor_s": 5.354671,
+        "fwd_bwd_s": 5.041151,
+        "optimizer_step_s": 0.313519,
+        "max_memory_allocated_gb": 24.4273,
+        "max_memory_reserved_gb": 6.3516,
+        "aot_bwd_num_saved_tensors": 719,
+        "aot_bwd_saved_bytes_mb": 917.598
+      },
+      "passed": true
+    }
+  }
+}

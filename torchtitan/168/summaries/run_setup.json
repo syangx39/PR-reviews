@@ -1,0 +1,77 @@
+{
+  "description": "Run setup for the #168 experiments (replay and 30-step runs), excerpted from the run recipe and stack manifest. Node names, storage paths and container registry paths are omitted. N_CHIPS_* counts TPU devices per host (one v7x chip = 2 devices).",
+  "model_and_data": {
+    "hf_model": "Qwen/Qwen3.5-0.8B",
+    "hf_revision": "2fc06364fc15b9679fa6fb6be96ef2ed9d1c0c49",
+    "text_only_conversion": "model_type=qwen3_5_text, tie_word_embeddings=true",
+    "dataset": "GSM8K (7,473 train / 1,319 test)"
+  },
+  "torchtitan": {
+    "in_image_commit": "aaf742e4866886f73e1d65742c557678791ca586",
+    "pr168_overlay_file": "patches/activation_checkpoint_pr168.py",
+    "pr168_overlay_source_commit": "fac85b8bd1e3150e319344925711ff6731f2e001",
+    "pr168_overlay_sha256": "3d4fd13f8c554fc97783728a2ec4efbfa763931bdf0da2eaf970fef5a46c9a55",
+    "pr168_overlay_installed_at": [
+      "torchtitan/experiments/tpu/activation_checkpoint.py (module path in aaf742e4)",
+      "torchtitan/experiments/tpu/components/activation_checkpoint.py (module path in the PR)"
+    ]
+  },
+  "verl_hardware_plugin": {
+    "base_commit": "1b9056f51d47ff76496574c04513be70fc8ba5b8",
+    "included_prs": [
+      "verl-project/verl-hardware-plugin#130: Fixed-shape micro-batch packing (8192/14336/16384) & pre-warm cost table",
+      "verl-project/verl-hardware-plugin#131: Per-block eager torch.compile (eager_blocks)",
+      "verl-project/verl-hardware-plugin#132: Tiled vocab cross-entropy loss"
+    ],
+    "cherry_picks": [
+      "verl-project/verl-hardware-plugin#136/#137: Sub-host multi-engine TP=2/TP=4 rollout replicas"
+    ],
+    "experiment_patch": "Imports TPUSelectiveAC from torchtitan.experiments.tpu.components.activation_checkpoint (falls back to the legacy path, fails closed if it resolves to core SelectiveAC) and passes recompute_bmm / save_pallas_attention into TPUSelectiveAC.Config; logs the resolved policy as [AC-AUDIT] at startup.",
+    "base_commit_ac_import": "At the base commit, torchtitan_tpu.py imported TPUSelectiveAC from torchtitan.experiments.tpu.activation_checkpoint and on ImportError aliased core torchtitan.distributed.activation_checkpoint.SelectiveAC as TPUSelectiveAC (which saves collectives and has no #168 flags)."
+  },
+  "runtime_packages": {
+    "python": "3.12.12",
+    "torch": "2.13.0+cpu",
+    "torch_tpu": "0.2.0",
+    "libtpu": "0.0.50",
+    "vllm": "0.32.0",
+    "jax": "0.12.0.1"
+  },
+  "recipe_env": {
+    "NNODES_TRAINER": "4",
+    "N_CHIPS_TRAINER": "8",
+    "NNODES_ROLLOUT": "4",
+    "N_CHIPS_ROLLOUT": "8",
+    "TENSOR_PARALLEL_SIZE": "1",
+    "CONTEXT_PARALLEL_SIZE": "1",
+    "ROLLOUT_TENSOR_PARALLEL_SIZE": "2",
+    "TRAIN_BATCH_SIZE": "128",
+    "PPO_MINI_BATCH_SIZE": "128",
+    "ROLLOUT_N": "16",
+    "LEARNING_RATE": "2.5e-6",
+    "LR_WARMUP_STEPS": "10",
+    "TOTAL_TRAINING_STEPS": "30",
+    "MAX_PROMPT_LEN": "256",
+    "MAX_RESPONSE_LEN": "4096",
+    "VAL_BATCH_SIZE": "1319",
+    "VAL_BEFORE_TRAIN": "True",
+    "TEST_FREQ": "10",
+    "SEED": "1"
+  },
+  "recipe_overrides": [
+    "++data.apply_chat_template_kwargs.enable_thinking=False",
+    "actor_rollout_ref.actor.use_dynamic_bsz=True",
+    "actor_rollout_ref.actor.ppo_max_token_len_per_gpu=16384",
+    "actor_rollout_ref.actor.optim.weight_decay=0.0",
+    "actor_rollout_ref.actor.optim.min_lr_factor=0.84",
+    "actor_rollout_ref.actor.use_kl_loss=False",
+    "actor_rollout_ref.actor.torchtitan.activation_checkpoint=selective",
+    "++actor_rollout_ref.actor.torchtitan.engine_kwargs.tpu.model_kernels=none",
+    "++actor_rollout_ref.ref.torchtitan.engine_kwargs.tpu.model_kernels=none",
+    "+actor_rollout_ref.actor.torchtitan.engine_kwargs.tpu.fixed_shape_rows=8192:14336:16384",
+    "+actor_rollout_ref.actor.torchtitan.engine_kwargs.tpu.fixed_shape_max_seqs=64",
+    "+actor_rollout_ref.actor.torchtitan.engine_kwargs.tpu.fixed_shape_response_len=4096",
+    "+actor_rollout_ref.actor.torchtitan.engine_kwargs.tpu.fixed_shape_prewarm=True",
+    "++actor_rollout_ref.actor.torchtitan.engine_kwargs.tpu.tie_embeddings=True"
+  ]
+}
